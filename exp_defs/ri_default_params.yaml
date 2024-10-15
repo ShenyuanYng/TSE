@@ -4,8 +4,8 @@ shuffle: true # shuffle training examples at every epoch
 num_workers: 1
 
 learning_rate: 0.001
-patience: 5
 decay_factor: 0.5
+patience: 5
 gradient_clip_val: 1.0
 epochs: 100
 
@@ -73,3 +73,5 @@ num_iters: 0
 init_epochs_net1: 0
 init_epochs_net_stack: 0
 init_stage_model_path: 'None'
+
+mag_sf: 1.0 # power compression factor to magnitude

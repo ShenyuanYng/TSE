@@ -9,7 +9,7 @@ import math
 from nets.activation import get_activation_layer
 from functools import partial
 import random
-from utils.audio_utils_torch import do_istft, do_stft, complex_multiply
+from utils.audio_utils_torch import do_istft, do_stft, complex_multiply, scaling_magnitude
 
 
 class FrameSeqAttn3U3NmUfdDualRNNBlockTFEmbViTLNFast(nn.Module):
@@ -254,6 +254,7 @@ class DPRNNTF(nn.Module):
             n_extra_feats=0,
             n_pred_components=2,
             first_conv_use_act=0,
+            mag_sf=1.0,
             ):
         super(DPRNNTF, self).__init__()
 
@@ -299,6 +300,8 @@ class DPRNNTF(nn.Module):
         self.convnormact_type = convnormact_type
         self.n_extra_feats = n_extra_feats
 
+        self.mag_sf = mag_sf
+
        
     def forward(self, batch, target_dict={}, current_epoch=None):
         # batch is [n_batch, n_pad_frames, 1, n_imics+n_extra_feats, n_pred_components, n_freqs]
@@ -306,9 +309,15 @@ class DPRNNTF(nn.Module):
 
         assert self.n_imics in [1, 8]
         mix_ri = mix_ri[:,:,:,:self.n_imics]
-
         n_batch, N = mix_ri.shape[:2]
-        batch = mix_ri.view([n_batch,N,-1,self.n_pred_components*self.n_freqs]).contiguous()
+        batch = mix_ri.contiguous()
+
+        if hasattr(self, 'mag_sf') and self.mag_sf != 1.0:
+            batch_cs = torch.complex(batch[...,0,:], batch[...,1,:])
+            batch_r, batch_i, _ = scaling_magnitude(batch_cs, self.mag_sf, eps=1e-5)
+            batch = torch.stack([batch_r, batch_i], dim=-2)
+
+        batch = batch.view([n_batch,N,-1,self.n_pred_components*self.n_freqs])
 
         if self.n_extra_feats == 0:
             batch = batch.view([n_batch,N,-1,self.n_freqs])
@@ -382,6 +391,7 @@ class DPRNNTFStack(nn.Module):
             n_extra_feats=0,
             n_pred_components=2,
             first_conv_use_act=0,
+            mag_sf=1.0,
             #
             use_pit_feat=0, use_lp_feat=None,
             n_layers_stack=0, n_iters=0,
@@ -405,6 +415,7 @@ class DPRNNTFStack(nn.Module):
                 n_extra_feats=n_extra_feats,
                 n_pred_components=n_pred_components,
                 first_conv_use_act=first_conv_use_act,
+                mag_sf=mag_sf,
                 )
 
         n_extra_feats = n_srcs*( (use_pit_feat>0) + (use_lp_feat is not None) )
@@ -424,6 +435,7 @@ class DPRNNTFStack(nn.Module):
                         n_extra_feats=n_extra_feats,
                         n_pred_components=n_pred_components,
                         first_conv_use_act=first_conv_use_act,
+                        mag_sf=mag_sf,
                         )
                     )
 
@@ -523,6 +535,7 @@ def ICP_torch(
         mix_cs, sph_cs,
         taps=37, delay=3,
         diagload=1e-5):
+    """ICP: linearly project mixture to estimate"""
     #
     # mix_cs.shape is [n_batch, n_frames, n_mics, n_freqs]
     # sph_cs.shape is [n_batch, n_frames, n_srcs, n_freqs]
@@ -596,7 +609,7 @@ def FCP_torch_2(
         taps=20, delay=0, inverse_power=None,
         diagload=1e-5,
         ):
-    """FCP"""
+    """FCP: linearly project mixture to estimate"""
     #
     # mix_cs.shape is  [n_batch, n_frames, n_mics, n_freqs]
     # sph_cs.shape is  [n_batch, n_frames, n_srcs, n_freqs]
@@ -657,6 +670,7 @@ def FCP_torch_2(
 
 
 def compute_inverse_power(Y, max_=None, fcp_weight_type=0, fcp_epsilon=1e-3):
+    """TF-unit weight in FCP"""
     # Y.shape is [n_batch, n_frames, n_imics, n_freqs]
     power = torch.mean(Y.real**2+Y.imag**2,dim=-2,keepdim=True) # [n_batch, n_frames, 1, n_freqs]
     if max_ is None:

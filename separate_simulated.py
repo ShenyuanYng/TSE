@@ -107,6 +107,12 @@ def main(args):
                 raise
 
             n_srcs = yout.shape[0]
+            if hparams.dataset == 'VoicebankDemandEXP' and n_srcs ==2:
+                # for speech enhancement, if predicting speech and noise, only take speech estimate
+                n_srcs = 1
+                yout = yout[:n_srcs]
+                targ_wfm = targ_wfm[:n_srcs]
+
             yout_wfm = d._istft(yout)[:,:,:n_samples] # [n_srcs, 1, -1]
 
             all_est_wfm = [yout_wfm*targ.mix_std_,]

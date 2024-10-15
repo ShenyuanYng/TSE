@@ -7,6 +7,21 @@ import warnings
 warnings.filterwarnings("ignore", category=UserWarning)
 
 
+def scaling_magnitude(mix_cs, sf, eps=1e-5):
+    # set eps to 0 for mixutre
+    # set eps to 1e-5 for estimated
+    mix_cs_real = mix_cs.real
+    mix_cs_imag = mix_cs.imag
+    mix_pow = mix_cs_real**2+mix_cs_imag**2
+    if sf == 1.0:
+        mag = torch.sqrt(mix_pow+eps)
+        return mix_cs_real, mix_cs_imag, mag
+    else:
+        mag = (mix_pow+eps)**(0.5*sf)
+        phase = torch.angle(mix_cs)
+        return mag*torch.cos(phase), mag*torch.sin(phase), mag
+
+
 def sqrt_hann(window_length, dtype=torch.float32, device=None):
     """ Sqrt-Hann window"""
     return torch.sqrt(torch.hann_window(window_length, periodic=True, dtype=dtype, device=device))

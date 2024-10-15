@@ -62,10 +62,12 @@ def main(hparams):
 
     freeze_unfreeze_callback = FreezeUnfreezeCallback()
 
-    if hparams.distributed_backend == 'ddp':
-        strategy = 'ddp_find_unused_parameters_true'
-    else:
-        raise
+    # only using the following code only when there are non-trainable parameters in the DNN
+    #if hparams.distributed_backend == 'ddp':
+    #    strategy = 'ddp_find_unused_parameters_true'
+    #else:
+    #    raise
+    strategy = hparams.distributed_backend
 
     trainer = Trainer(min_epochs=hparams.epochs, max_epochs=hparams.epochs,
                       logger=logger,

@@ -9,12 +9,17 @@ slurm_workers=16 # need to be the same as the NUM_PROCESSES flag in, e.g., creat
 . ./tools/cmd.sh ${num_gpus} ${slurm_workers} ""
 
 # generate RIRs
-$cuda_cmd "create-mixtures/generate_all_RIRs.log" \
-    python create-mixtures/generate_all_RIRs.py
+#$cuda_cmd "create-mixtures/generate_all_RIRs.log" \
+#    python create-mixtures/generate_all_RIRs.py
  
 # spatialize WSJ0CAM to create reverb mixtures
-$cuda_cmd "create-mixtures/WSJCAM0_spatialize.log" \
-    python create-mixtures/WSJCAM0_spatialize.py
+#$cuda_cmd "create-mixtures/WSJCAM0_spatialize.log" \
+#    python create-mixtures/WSJCAM0_spatialize.py
 
-$cuda_cmd "create-mixtures/VoicebankDemand_downsample.log" \
-    python create-mixtures/VoicebankDemand_downsample.py
+# downsample VoicebankDemand from 48k to 16k
+#$cuda_cmd "create-mixtures/VoicebankDemand_downsample.log" \
+#    python create-mixtures/VoicebankDemand_downsample.py
+
+# VoicebankDemand only has speech, generate noise by using mixture - speech
+$cuda_cmd "create-mixtures/VoicebankDemand_generate_noise.log" \
+    python create-mixtures/VoicebankDemand_generate_noise.py

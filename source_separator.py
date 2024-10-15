@@ -195,14 +195,9 @@ class SourceSeparator(pl.LightningModule):
             'optimizer': optimizer,
             'lr_scheduler': {
                 'scheduler': scheduler,
-                'monitor': 'val_loss',},
+                'monitor': 'val_loss',
+            },
         }
-
-
-    def _init_fn(self, worker_id):
-        random.seed(self.hparams.seed+worker_id)
-        np.random.seed(self.hparams.seed+worker_id)
-        torch.manual_seed(self.hparams.seed+worker_id)
 
     @classmethod
     def load_from_checkpoint(cls, checkpoint_path, default_params=None):
@@ -221,10 +216,14 @@ class SourceSeparator(pl.LightningModule):
         model = cls(hparams)
         model.load_state_dict(checkpoint['state_dict'])
         model.on_load_checkpoint(checkpoint)
-
         return model
 
-    def _get_data_loader(self, partition):
+    def _worker_init_fn(self, worker_id):
+        random.seed(self.hparams.seed+worker_id)
+        np.random.seed(self.hparams.seed+worker_id)
+        torch.manual_seed(self.hparams.seed+worker_id)
+
+    def _build_data_loader(self, partition):
         shuffle = self.hparams.shuffle if partition == 'tr' else None
         d = dataset_creator(self.hparams, partition)
         return data.DataLoader(
@@ -233,10 +232,13 @@ class SourceSeparator(pl.LightningModule):
                     collate_seq,
                     pad_back_or_front=self.hparams.pad_back_or_front,
                     ),
-                shuffle=shuffle, num_workers=self.hparams.num_workers, worker_init_fn=self._init_fn,)
+                shuffle=shuffle,
+                num_workers=self.hparams.num_workers,
+                worker_init_fn=self._worker_init_fn,
+                )
 
     def train_dataloader(self):
-        return self._get_data_loader('tr')
+        return self._build_data_loader('tr')
 
     def val_dataloader(self):
-        return self._get_data_loader('cv')
+        return self._build_data_loader('cv')

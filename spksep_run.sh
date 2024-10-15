@@ -17,6 +17,7 @@ model_name=SeqUNetDense; seqmodel_type=2; num_layers=4; num_sources=2;
 masking_or_mapping=1;
 mask_nonlinearity=linear; target_trunc_max=5;
 loss_items="rix2+mag";
+mag_sf=1.0;
 samplerate=16000; num_imics=1; num_omics=1;
 metric_type=0
 
@@ -80,7 +81,7 @@ elif [ $use_slurm = "1" ] && [[ "$HOSTNAME" == ailab0* ]]; then
     num_workers=4
     slurm_workers=$((num_workers + num_gpus)) # one thread for each gpu plus number of workers for data loading
     . ./tools/cmd.sh ${num_gpus} ${slurm_workers} ""
-    nj=2
+    nj=3
     on_local_machine=0
 else
     export sdr_cmd="run.pl"
@@ -225,6 +226,9 @@ else
 fi
 #
 save_name=${save_name}_${loss_items}
+if [ $mag_sf != "1.0" ]; then
+    save_name=${save_name}_magsf${mag_sf}
+fi
 if [ $mask_loss_type != "l1" ]; then
     save_name=${save_name}_${mask_loss_type}
 fi
@@ -317,7 +321,7 @@ for jj in `seq 1 $nj`; do
         --save-name $save_name \
         --feature-type $feature_type --rms-norm $rms_norm \
         --model-name $model_name --seqmodel-type $seqmodel_type --num-layers $num_layers --num-sources $num_sources \
-        --loss-items $loss_items \
+        --loss-items $loss_items --mag-sf $mag_sf \
         --masking-or-mapping $masking_or_mapping \
         --samplerate $samplerate --num-imics $num_imics --num-omics $num_omics \
         --dataset $dataset --max-num-mics $max_num_mics --max-num-omics $max_num_omics \

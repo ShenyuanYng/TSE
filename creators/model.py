@@ -10,6 +10,9 @@ def model_creator(hparams):
 
     model_name = hparams.model_name
 
+    if not hasattr(hparams, 'mag_sf'):
+        hparams.mag_sf = 1.0
+
     if model_name == 'DPRNNTF':
         class_name = tfgridnet.DPRNNTF
         model = class_name(
@@ -23,6 +26,7 @@ def model_creator(hparams):
             feature_type=hparams.feature_type,
             n_pred_components=n_pred_components,
             first_conv_use_act=hparams.first_conv_use_act,
+            mag_sf=hparams.mag_sf,
             )
 
     elif model_name == 'DPRNNTFStack':
@@ -38,6 +42,7 @@ def model_creator(hparams):
             feature_type=hparams.feature_type,
             n_pred_components=n_pred_components,
             first_conv_use_act=hparams.first_conv_use_act,
+            mag_sf=hparams.mag_sf,
             #
             use_pit_feat=hparams.use_pit_feat, use_lp_feat=hparams.use_lp_feat,
             n_layers_stack=hparams.num_layers_stack, n_iters=hparams.num_iters,

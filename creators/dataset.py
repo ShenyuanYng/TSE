@@ -69,10 +69,11 @@ def datapath_creator(hparams, partition, is_training=None):
                 )
 
     elif hparams.dataset in ['VoicebankDemandEXP',]:
+        assert hparams.num_sources in [1,2,]
         path_list = get_mixture_paths(
                 hparams.data_path,
                 partition=partition, sr=hparams.samplerate,
-                mix_dir='mix', src_dir_list=['s1'], reverb_src_dir_list=[],
+                mix_dir='mix', src_dir_list=['s%d'%(ss+1) for ss in range(hparams.num_sources)], reverb_src_dir_list=[],
                 sr_str_=sr_str_,
                 is_training=is_training,
                 )
