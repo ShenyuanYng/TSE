@@ -290,3 +290,30 @@ def si_snr_loss_se(estimates, targets, use_scaling=True):
     si_snr_array = - 10. * torch.log10( (sig_power+1e-3) / (noi_power + 1e-5*(sig_power+1e-3)) + 1e-5)
 
     return si_snr_array, scale[:,0,:,:,0] # [n_batch, n_perms, n_srcs], [n_batch, 1, n_perms, n_srcs, 1]
+
+
+def si_snr_loss(estimates, targets, use_scaling=True):
+    """
+    Same as SI-SNR, we scale targets
+    See https://zqwang7.github.io/publications/TASLP2023_TF-GridNet.pdf
+    estimates.shape is [n_batch, n_pad_samples,       1, n_srcs, n_omics]
+    targets.shape is   [n_batch, n_pad_samples, n_perms, n_srcs, n_omics]
+    """
+    estimates = _mean_center(estimates, dim=(1,-1)) # [n_batch, n_pad_samples, 1, n_srcs, n_omics]
+    targets = _mean_center(targets, dim=(1,-1)) # [n_batch, n_pad_samples, n_perms, n_srcs, n_omics]
+
+    if use_scaling:
+        sig_power = _l2_square(targets, dim=(1,-1), keepdims=True) # [n_batch, 1, 1, n_srcs, 1]
+        dot_ = torch.sum(estimates*targets, dim=(1,-1), keepdims=True) # [n_batch, 1, n_perms, n_srcs, 1]
+        scale = dot_ / (sig_power+1e-3) # [n_batch, 1, n_perms, n_srcs, 1]
+    else:
+        n_batch, _, n_perms, n_srcs, _ = targets.shape
+        scale = torch.ones([n_batch,1,n_perms,n_srcs,1],dtype=targets.dtype,device=targets.device)
+
+    s_targets = scale * targets # [n_batch, n_pad_samples, n_perms, n_srcs, n_omics]
+    e_noise = estimates - s_targets # [n_batch, n_pad_samples, n_perms, n_srcs, n_omics]
+    sig_power = _l2_square(s_targets,dim=(1,-1)) # [n_batch, n_perms, n_srcs]
+    noi_power = _l2_square(e_noise,dim=(1,-1)) # [n_batch, n_perms, n_srcs]
+    si_snr_array = - 10. * torch.log10( (sig_power+1e-3) / (noi_power + 1e-5*(sig_power+1e-3)) + 1e-5)
+
+    return si_snr_array, scale[:,0,:,:,0] # [n_batch, n_perms, n_srcs], [n_batch, 1, n_perms, n_srcs, 1]

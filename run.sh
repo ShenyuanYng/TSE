@@ -11,8 +11,8 @@
 # 4. This code writes important information about training progress into log files. The saved log file can be very helpful in many cases, especially for the purpose of reproducibility. Please consider following this style.
 #
 #
-#use_slurm=0; # if the GPU server is a local one, need to configure which GPU to use
-use_slurm=1; # if the GPU server is managed by slurm
+use_slurm=0; # if the GPU server is a local one, need to configure which GPU to use
+#use_slurm=1; # if the GPU server is managed by slurm
 #
 # If you use slurm, here is a list of very useful commands (all can be found in my .bashrc at /home/wangzq_lab/cse30029918/.bashrc). They are customized by me.
 # 1. ALLsqueue           <-- list all the jobs in the queue (by all the users on all the nodes)
@@ -49,19 +49,19 @@ fi
 # 3. Some mixture signal could be shorter than, e.g., 4 second. In this case, the selected segment is shorter than 4 second. The padded length (i.e., max of all the segment lengths in a mini-batch) could be actually shorter than 4 second. This means that the number of frames we feed for DNN training could vary (be careful with the torch.backends.cudnn.benchmark flag in this case), and the GPU memory comsuption could fluctuate.
 # Please see utils/collate.py for details, which is called in _build_data_loader in SourceSeparator in source_separator.py
 train_on_chunk=4;
-#train_on_chunk=8; # <----
+#train_on_chunk=8;
 #batch_size=1;
 batch_size=4;
 #
 #
 # reduce learning rate if no improvement is obtained in validation loss for [patience] epochs
-patience=2; 
+#patience=2; 
 patience=3;
 #
 #
 train_percent_check=1.0; val_percent_check=1.0; # using full training mixtures in each epoch
 #train_percent_check=0.25; val_percent_check=1.0; # sample 25% training mixtures in each epoch
-#train_percent_check=0.01; val_percent_check=0.01; train_on_chunk=2; batch_size=1; patience=1; # for debug purpose
+train_percent_check=0.01; val_percent_check=0.01; train_on_chunk=2; batch_size=1; patience=1; # for debug purpose
 #
 mask_loss_type=ratiol1; # use L1 distance in loss
 #mask_loss_type=ratiol2; # use L2 distance in loss
@@ -89,6 +89,7 @@ num_hid_units=200; emb_dim=128; emb_ks=1; emb_hs=1; seqmodel_type=3861; # to red
 #
 cudnn_benchmark=0; # this flag may speed up training, if the padded signal length in each mini-batch is always fixed, e.g., always 4 seconds
 tag=""; # you can give a custom name to your experiment, but I seldomly use it
+#tag="_comparison0"; # you can give a custom name to your experiment, but I seldomly use it
 #
 num_sources=1; # number of target sources to predict
 #
@@ -96,25 +97,6 @@ num_sources=1; # number of target sources to predict
 num_layers=2;
 num_layers=3;
 num_layers=4;
-#
-#
-# The following block of code is not needed for many people. It is used to train multiple DNNs in a sequential or joint way.
-# e.g., we can train DNN module 1 (DNN1), then DNN2, and then jointly train them together.
-num_layers_stack=2; num_iters=0; # single DNN
-init_epochs_net1=0; init_epochs_net_stack=0;
-init_stage_model_path="None";
-#init_stage_model_path="ri_GN1_2-200-128-1-1_1st1_rix2+mag_ratiol1_1im_map_trn0.25_chunk4_bkoff"
-use_pit_feat=0; use_lp_feat="None";
-if [ $init_stage_model_path != "None" ]; then
-    num_iters=1; init_epochs_net1=0; init_epochs_net_stack=50; epochs=$init_epochs_net_stack;
-    use_pit_feat=1; use_lp_feat="None";
-    #use_pit_feat=1; use_lp_feat="ICP_7_-3"; # ICP
-    #use_pit_feat=1; use_lp_feat="FCP_20_0_1e-3_0"; # FCP
-    #use_pit_feat=1; use_lp_feat="FCP_40_0_1e-3_0"; # FCP
-    use_pit_feat=1; use_lp_feat="FCP_40_0_1e-2_0"; # FCP
-    model_name=DPRNNTFStack;
-fi
-#
 #
 ref_mic=0; # reference microphone index, usually just 0 (i.e., the first microphone)
 #loss_items="rix2+mag";
@@ -134,7 +116,7 @@ dataset="wsj0-mix"; samplerate=8000; num_sources=2; permutation_invariant=True; 
 #
 # what evaluation metric to use, run-time parameter
 metric_type=0 # SI-SDR
-metric_type=11 # PESQwb
+#metric_type=11 # PESQwb
 #metric_type=21 # STOI
 #metric_type=100 # BSSEvalSDR
 #metric_type=1 # PESQ
@@ -174,10 +156,6 @@ stage=1; #training
         --first_conv_use_act $first_conv_use_act \
         --ref_mic $ref_mic \
         --testset $testset \
-        --use_pit_feat $use_pit_feat --use_lp_feat $use_lp_feat \
-        --num_layers_stack $num_layers_stack --num_iters $num_iters \
-        --init_epochs_net1 $init_epochs_net1 --init_epochs_net_stack $init_epochs_net_stack \
-        --init_stage_model_path $init_stage_model_path \
         --cudnn_benchmark $cudnn_benchmark \
         --use_slurm $use_slurm \
         --gpu $gpu \

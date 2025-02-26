@@ -43,11 +43,6 @@ ref_mic=0;
 pad_back_or_front=0;
 testset=tt;
 
-use_pit_feat=1; use_lp_feat="None";
-num_layers_stack=2; num_iters=0;
-init_epochs_net1=0; init_epochs_net_stack=0;
-init_stage_model_path="None";
-
 cudnn_benchmark=1;
 use_slurm=1;
 gpu=0;
@@ -101,21 +96,23 @@ if [ $dataset = "fixarr_h1+n-s1" ]; then
     tmpdataset="fixarr"
     #data_orig_path="/scratch/wangzhon/MERL-dereverb_signals/$tmpdataset/"
     #data_orig_path="/scratch/`whoami`/MERL-dereverb_signals/$tmpdataset/"
-    data_orig_path="$HOME/corpus/MERL-dereverb_signals/$tmpdataset/"
+    #data_orig_path="$HOME/corpus/MERL-dereverb_signals/$tmpdataset/"
+    data_orig_path="/data1/`whoami`/MERL-dereverb_signals/$tmpdataset/"
     if [ $use_slurm = "1" ]; then
-        local_dir="$HOME/corpus/"
+        #local_dir="$HOME/corpus/"
+        local_dir="/data1/`whoami`/MERL-dereverb_signals"
         #
         # the following code is an example of transfering training data from one slurm cluster to another cluster
         # we use rsync to ensure exactly the same data, and rsync synchronizes data in an incremental way
         #
         #wavxk=wav16k
         #for dd in tr cv tt; do
-        #    for ee in mix mix_ct s1 s2 mix_ct_align mix_ct_align_2 mix_ct_align_2_pseudo_s1 pseudo_s1; do
+        #    for ee in mix s1; do
         #        mkdir -p ${local_dir}/$tmpdataset/$wavxk/$dd/$ee
-        #        rsync -av --delete --copy-links wangzhon@pnl19.cse.ohio-state.edu:$data_orig_path/$wavxk/$dd/$ee/ ${local_dir}/$tmpdataset/$wavxk/$dd/$ee/ &
+        #        rsync -av --delete --copy-links cse30029918@ailab01:$data_orig_path/$wavxk/$dd/$ee/ ${local_dir}/$tmpdataset/$wavxk/$dd/$ee/ &
         #    done
         #done
-        data_path="${local_dir}/MERL-dereverb_signals/$tmpdataset/"
+        data_path="${local_dir}/$tmpdataset/"
     else
         data_path=$data_orig_path
     fi
@@ -126,15 +123,17 @@ elif [ $dataset = "wsj0-mix" ]; then
         exit 1;
     fi
     tmpdataset="wsj0-mix/${num_sources}speakers"
-    data_orig_path="$HOME/corpus/$tmpdataset/"
+    #data_orig_path="$HOME/corpus/$tmpdataset/"
+    data_orig_path="/data1/`whoami`/$tmpdataset/"
     if [ $use_slurm = "1" ]; then
-        local_dir="$HOME/corpus/"
+        #local_dir="$HOME/corpus/"
+        local_dir="/data1/`whoami`/"
         #wavxk=wav8k
         #for dd in tr cv; do
         #    for ee in mix s1 s2; do
         #    #for ee in mix s1 s2 s3; do
         #        mkdir -p ${local_dir}/$tmpdataset/$wavxk/min/$dd/$ee
-        #        rsync -av --delete --links wangzhon@pnl18.cse.ohio-state.edu:$data_orig_path/$wavxk/min/$dd/$ee/ ${local_dir}/$tmpdataset/$wavxk/min/$dd/$ee/
+        #        rsync -av --delete --links cse30029918@ailab01:$data_orig_path/$wavxk/min/$dd/$ee/ ${local_dir}/$tmpdataset/$wavxk/min/$dd/$ee/
         #        #rsync -av --delete --links $data_orig_path/$wavxk/min/$dd/$ee/ ${local_dir}/$tmpdataset/$wavxk/min/$dd/$ee/
         #    done
         #done
@@ -151,9 +150,11 @@ elif [[ $dataset = VoicebankDemandEXP ]]; then
         exit 1;
     fi
     tmpdataset=VoicebankDemandEXP
-    data_orig_path="$HOME/corpus/$tmpdataset/"
+    #data_orig_path="$HOME/corpus/$tmpdataset/"
+    data_orig_path="/data1/`whoami`/$tmpdataset/"
     if [ $use_slurm = "1" ]; then
-        local_dir="$HOME/corpus/"
+        #local_dir="$HOME/corpus/"
+        local_dir="/data1/`whoami`/"
         data_path="${local_dir}/$tmpdataset/"
     else
         data_path=$data_orig_path
@@ -166,16 +167,7 @@ else
 fi
 
 save_name=${dataset}/
-if [ $init_stage_model_path != "None" ]; then
-    save_name=${save_name}/${init_stage_model_path}
-fi
 save_name=${save_name}/$feature_type
-if [ $use_pit_feat = "1" ]; then
-    save_name=${save_name}+pit
-fi
-if [ $use_lp_feat != "None" ]; then
-    save_name=${save_name}+${use_lp_feat}
-fi
 if [ $inwintime != "0.032" ]; then
     save_name=${save_name}_iwt${inwintime}
 fi
@@ -185,18 +177,14 @@ fi
 if [ $rms_norm != "2" ]; then
     save_name=${save_name}_rms${rms_norm}
 fi
-if [ $model_name = "DPRNNTF" ] || [ $model_name = "DPRNNTFStack" ]; then
+if [ $model_name = "DPRNNTF" ]; then
     if [ $model_name != "DPRNNTF" ]; then
         save_name=${save_name}_${model_name}
     fi
     if [ $seqmodel_type = "3861" ]; then
         save_name=${save_name}_GN1
     fi
-    if [ $num_iters != "0" ]; then
-        save_name=${save_name}_${num_layers}-${num_layers_stack}stkX${num_iters}-${num_hid_units}-${emb_dim}-${emb_ks}-${emb_hs}
-    else
-        save_name=${save_name}_${num_layers}-${num_hid_units}-${emb_dim}-${emb_ks}-${emb_hs}
-    fi
+    save_name=${save_name}_${num_layers}-${num_hid_units}-${emb_dim}-${emb_ks}-${emb_hs}
     if [ $first_conv_use_act != "0" ]; then
         save_name=${save_name}_1st${first_conv_use_act}
     fi
@@ -275,9 +263,6 @@ save_name=${save_name}_chunk${train_on_chunk}
 if [ $cudnn_benchmark != "1" ]; then
     save_name=${save_name}_bkoff
 fi
-if [ $init_epochs_net1 != "0" ] || [ $init_epochs_net_stack != "0" ] ; then
-    save_name=${save_name}_init${init_epochs_net1}+${init_epochs_net_stack}
-fi
 save_name=${save_name}$tag
 #
 if [ "$CONDA_DEFAULT_ENV" != "tums_cuda11p8" ]; then
@@ -341,10 +326,6 @@ for jj in `seq 1 $nj`; do
         --ref-mic $ref_mic \
         --pad-back-or-front $pad_back_or_front \
         --mask-loss-type $mask_loss_type \
-        --use-pit-feat $use_pit_feat --use-lp-feat $use_lp_feat \
-        --num-layers-stack $num_layers_stack --num-iters $num_iters \
-        --init-epochs-net1 $init_epochs_net1 --init-epochs-net-stack $init_epochs_net_stack \
-        --init-stage-model-path $init_stage_model_path \
         --cudnn-benchmark $cudnn_benchmark \
         --seed $(($jj + 6)) \
         $other_options &

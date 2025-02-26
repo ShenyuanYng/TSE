@@ -29,7 +29,7 @@ for idx, sub_dir in enumerate(sub_dirs):
     file_paths = REVERB_NOISE_LIST[idx]
     for file_path in file_paths:
         print('.', end = '')
-        sig, fs = sf.read(file_path.replace('/scratch/wangzhon/','/home/wangzq_lab/cse30029918/corpus/'))
+        sig, fs = sf.read(file_path.replace('/scratch/wangzhon/',os.path.expanduser('~')+'/corpus/'))
         assert fs == 16000
         sig = sig.astype(np.float32)
         NOISES[idx].append(sig) # each [-1, 8]
@@ -170,7 +170,8 @@ for dd, set_name in enumerate(set_names):
         file_name = ('%06d'%uu)+'_'+('%.4f'%T60)+'.wav'
         file_name_pickle = ('%06d'%uu)+'_'+('%.4f'%T60)+'.pickle'
         sf.write(file=to_write_dir+'/'+set_name+'/mix/'+file_name, data=mc_mix_sig.astype(np.float32), samplerate=fs)
-        sf.write(file=to_write_dir+'/'+set_name+'/s1/'+file_name, data=mc_ane_sig[:,0].astype(np.float32), samplerate=fs) # only save first channel
+        #sf.write(file=to_write_dir+'/'+set_name+'/s1/'+file_name, data=mc_ane_sig[:,0].astype(np.float32), samplerate=fs) # only save first channel
+        sf.write(file=to_write_dir+'/'+set_name+'/s1/'+file_name, data=mc_ane_sig.astype(np.float32), samplerate=fs) # save all channels
         sf.write(file=to_write_dir+'/'+set_name+'/s1_reverb/'+file_name, data=mc_rev_sig[:,0].astype(np.float32), samplerate=fs) # only save first channel
         #sf.write(file=to_write_dir+'/'+set_name+'/s1_source/'+file_name, data=sig, samplerate=fs)
         #sf.write(file=to_write_dir+'/'+set_name+'/s1_rir/'+file_name, data=h_anecho[:,0].T, samplerate=fs)
@@ -214,7 +215,8 @@ for dd, set_name in enumerate(set_names):
 
     #NUM_PROCESSES = 16 #zqgpuserver1
     #NUM_PROCESSES = 4 #zqgpuserver1
-    NUM_PROCESSES = 16 # sustech_cse_cluster_2
+    #NUM_PROCESSES = 16 # sustech_cse_cluster_2
+    NUM_PROCESSES = 128 # ailab01
     p = Pool(NUM_PROCESSES)
     p.map(simulate_mixture, range(n_mixture))
     """

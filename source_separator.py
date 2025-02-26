@@ -136,60 +136,10 @@ class SourceSeparator(pl.LightningModule):
 
     def configure_optimizers(self):
         hparams = self.hparams
-        if self.last_epoch is None:
-            optimizer = optim.Adam(self.parameters(), lr=self.hparams.learning_rate)
-            scheduler = optim.lr_scheduler.ReduceLROnPlateau(
-                    optimizer, patience=self.hparams.patience,
-                    factor=self.hparams.decay_factor, verbose=True)
-
-        else:
-            #
-            # to deal with the case when the training is interrupted (e.g., kill by slurm due to exceeding the job time limit), and we have to re-start training
-            #
-            init_epochs_net1 = hparams.init_epochs_net1
-            init_epochs_net_stack = hparams.init_epochs_net_stack
-            num_iters = hparams.num_iters
-
-            if init_epochs_net1 == 0 and init_epochs_net_stack == 0:
-                optimizer = optim.Adam(self.parameters(), lr=self.hparams.learning_rate)
-                scheduler = optim.lr_scheduler.ReduceLROnPlateau(
-                        optimizer, patience=self.hparams.patience,
-                        factor=self.hparams.decay_factor, verbose=True)
-
-            else:
-                assert init_epochs_net1 >= 0 and init_epochs_net_stack > 0
-                model = self.model
-                logger.info('set all to train')
-                for param in model.parameters():
-                    param.requires_grad = True
-                for kk in range(0, self.last_epoch+1):
-                    if kk == init_epochs_net1:
-                        logger.info('set net1 to eval')
-                        for param in model.net1.parameters():
-                            param.requires_grad = False
-
-                    if init_epochs_net1 < kk and kk < init_epochs_net1+num_iters*init_epochs_net_stack:
-                        if (kk-init_epochs_net1) % init_epochs_net_stack == 0:
-                            net_idx = (kk - init_epochs_net1) // init_epochs_net_stack - 1
-                            logger.info('set iter_nets {} to eval'.format(net_idx))
-                            for param in model.iter_nets[net_idx].parameters():
-                                param.requires_grad = False
-
-                    if kk == init_epochs_net1+num_iters*init_epochs_net_stack:
-                        raise
-                        logger.info('set all to train')
-                        for param in model.parameters():
-                            param.requires_grad = True
-
-                logger.info('update optimizer and lr_scheduler')
-                optimizer = optim.Adam(
-                        filter(
-                            lambda p: p.requires_grad, model.parameters(),
-                            ),
-                        lr=hparams.learning_rate)
-                scheduler = optim.lr_scheduler.ReduceLROnPlateau(
-                        optimizer, patience=hparams.patience,
-                        factor=hparams.decay_factor, verbose=True)
+        optimizer = optim.Adam(self.parameters(), lr=self.hparams.learning_rate)
+        scheduler = optim.lr_scheduler.ReduceLROnPlateau(
+                optimizer, patience=self.hparams.patience,
+                factor=self.hparams.decay_factor, verbose=True)
 
         return {
             'optimizer': optimizer,

@@ -10,7 +10,6 @@ import argparse
 from utils.config import yaml_to_parser
 from utils.mytensorboardlogger import MyTensorBoardLogger
 from utils.backtracking_model_checkpoint import BacktrackingModelCheckpointUpgrade
-from utils.freeze_unfreeze_callback import FreezeUnfreezeCallback
 from source_separator import SourceSeparator
 import os.path
 
@@ -60,8 +59,6 @@ def main(hparams):
         ckpt_callback.last_model_path = info[6]
         last_epoch = info[7]
 
-    freeze_unfreeze_callback = FreezeUnfreezeCallback()
-
     # only using the following code only when there are non-trainable parameters in the DNN
     #if hparams.distributed_backend == 'ddp':
     #    strategy = 'ddp_find_unused_parameters_true'
@@ -72,10 +69,10 @@ def main(hparams):
     trainer = Trainer(min_epochs=hparams.epochs, max_epochs=hparams.epochs,
                       logger=logger,
                       limit_train_batches=hparams.train_percent_check, limit_val_batches=hparams.val_percent_check, limit_test_batches=hparams.test_percent_check,
-                      enable_checkpointing=True, # checkpoint_callback=True, change here
-                      callbacks=[ckpt_callback, pl.callbacks.ModelSummary(max_depth=5), freeze_unfreeze_callback], # change here
+                      enable_checkpointing=True,
+                      callbacks=[ckpt_callback, pl.callbacks.ModelSummary(max_depth=5),],
                       default_root_dir=hparams.save_path,
-                      devices=hparams.gpus, # gpus=hparams.gpus, change here
+                      devices=hparams.gpus,
                       accelerator="gpu", # accelerator=hparams.distributed_backend, change here
                       #strategy=hparams.distributed_backend, # change here
                       strategy=strategy,
@@ -85,7 +82,6 @@ def main(hparams):
                       deterministic=hparams.cudnn_deterministic, # change here
                       num_sanity_val_steps=10,
                       ) #
-    #                 num_sanity_val_steps=-1 if hparams.init_stage_model_path is not None and resume_from_checkpoint is None else 10,
 
     if 'last_epoch' in locals():
         loguru.logger.info('last_epoch={}'.format(last_epoch))
@@ -93,36 +89,6 @@ def main(hparams):
         model = SourceSeparator(hparams, last_epoch=last_epoch)
     else:
         model = SourceSeparator(hparams, last_epoch=None)
-
-    if hparams.init_stage_model_path is not None and resume_from_checkpoint is None:
-        #
-        # load model parameters from a previously trained model
-        #
-        import glob
-        checkpoints = glob.glob('{}/{}/{}/version_*/_ckpt_epoch_*.ckpt'.format(orig_save_path, hparams.dataset, hparams.init_stage_model_path))
-        assert len(checkpoints) == 1
-        checkpoint = checkpoints[0]
-        hparams_yaml = os.path.dirname(checkpoint) + '/hparams.yaml'
-        loguru.logger.info('loading checkpoint = {}'.format(checkpoint))
-        loguru.logger.info('loading hparams_yaml = {}'.format(hparams_yaml))
-        init_model = SourceSeparator.load_from_checkpoint(checkpoint, default_params=hparams_yaml)
-
-        pretrained_dict = init_model.model.state_dict()
-        model_dict = model.model.state_dict()
-        
-        #print(pretrained_dict)
-        #print(model_dict)
-
-        if init_model.hparams.model_name == 'DPRNNTF':
-            pretrained_dict = {'net1.'+k: v for k, v in pretrained_dict.items() if 'net1.'+k in model_dict}
-        elif init_model.hparams.model_name == 'DPRNNTFStack':
-            pretrained_dict = {k: v for k, v in pretrained_dict.items() if k in model_dict}
-        else:
-            raise
-        
-        model_dict.update(pretrained_dict)
-        model.model.load_state_dict(model_dict)
-        #del init_model
 
     #torch._dynamo.config.verbose=True
     #compiled_model = torch.compile(model)

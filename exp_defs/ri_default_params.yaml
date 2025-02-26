@@ -9,10 +9,10 @@ patience: 5
 gradient_clip_val: 1.0
 epochs: 100
 
-gpus: 0 # #gpus
+gpus: 0
 distributed_backend: ddp
-save_path: "./experiments"  # top level path to save output
-save_name: "pl_logs"  # experiment name
+save_path: "./experiments" # top level path to save output
+save_name: "pl_logs" # experiment name
 
 train_percent_check: 1.0
 val_percent_check: 1.0
@@ -21,8 +21,8 @@ test_percent_check: 1.0
 data_orig_path: '/scratch/wangzhon/MERL-dereverb_signals/fixarr/'
 data_path: '/scratch/wangzhon/MERL-dereverb_signals/fixarr/'
 dataset: fixarr_h1+n-s1
-max_num_mics: 7 # maximum number of microphones in the data
-max_num_omics: 7
+max_num_mics: 7 # maximum number of input microphones
+max_num_omics: 7 # maximum number of output microphones
 samplerate: 16000
 feature_type: 'ri'
 fft_size: 0
@@ -38,14 +38,14 @@ loss_items: 'rix2+mag'
 permutation_invariant: false
 
 model_name: DPRNNTF # type of model: chimera, mask_inference, ...
-num_sources: 2  # number of separated sources output by network
-num_imics: 1  # number of input microphones for networking training
-num_omics: 1  # number of output microphones for networking training
-seqmodel_type: 2 # 1: BLSTM; 2: TCN
-num_layers: 4  # number of BLSTM layers
-masking_or_mapping: 1 # Use complex masking or mapping, choices=[0, 1]. 0: masking; 1: mapping
-mask_nonlinearity: linear # Activaiton for producing estimated real and imag components.
-target_trunc_max: 10  # maximum value to truncate estimated complex masks
+num_sources: 2 # number of separated sources output by network
+num_imics: 1 # number of input microphones for networking training
+num_omics: 1 # number of output microphones for networking training
+seqmodel_type: 2 # model type
+num_layers: 4 # number of layers
+masking_or_mapping: 1 # use complex masking or mapping, 0: masking; 1: mapping
+mask_nonlinearity: linear # activaiton for producing estimated real and imag components
+target_trunc_max: 10 # maximum value to truncate estimated complex masks
 act_type: elu
 norm_type: GlobalInstanceNormalization
 convnormact_type: 2 # Order of convolution, normalization, activation, choices=[0, 1, 2]. 0: norm-act-conv; 1: conv-norm-act; 2: conv-act-norm
@@ -65,13 +65,5 @@ gpuidx: "0" # record the gpu id that runs the code, not useful for slurm
 first_conv_use_act: 0
 ref_mic: -1
 pad_back_or_front: 0 # when padding training segments, we can pad to the front or back, 0: pad back; 1: pad front
-
-use_pit_feat: 0
-use_lp_feat: 'None'
-num_layers_stack: 2
-num_iters: 0
-init_epochs_net1: 0
-init_epochs_net_stack: 0
-init_stage_model_path: 'None'
 
 mag_sf: 1.0 # power compression factor to magnitude
