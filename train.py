@@ -29,7 +29,8 @@ def main(hparams):
     orig_save_path = hparams.save_path
     hparams.save_path = os.path.join(hparams.save_path, logger.name, f'version_{logger.version}')
 
-    assert pl.__version__ == '2.0.9'
+    #assert pl.__version__ == '2.0.9'
+    assert pl.__version__ == '2.5.2'
     torch.set_float32_matmul_precision('high')
 
     ckpt_callback = BacktrackingModelCheckpointUpgrade(

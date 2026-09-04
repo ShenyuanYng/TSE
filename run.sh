@@ -39,6 +39,13 @@ if [ $HOSTNAME = "zqgpuserver1" ]; then
     gpu=3 #RTX4090
 else
     gpu=0
+    gpu=1
+    gpu=2
+    gpu=3
+    gpu=4
+    gpu=5
+    gpu=6
+    gpu=7
 fi
 #
 #
@@ -50,8 +57,9 @@ fi
 # Please see utils/collate.py for details, which is called in _build_data_loader in SourceSeparator in source_separator.py
 train_on_chunk=4;
 #train_on_chunk=8;
-#batch_size=1;
-batch_size=4;
+batch_size=1;
+#batch_size=4;
+batch_size=2; train_on_chunk=5;
 #
 #
 # reduce learning rate if no improvement is obtained in validation loss for [patience] epochs
@@ -61,7 +69,7 @@ patience=3;
 #
 train_percent_check=1.0; val_percent_check=1.0; # using full training mixtures in each epoch
 #train_percent_check=0.25; val_percent_check=1.0; # sample 25% training mixtures in each epoch
-train_percent_check=0.01; val_percent_check=0.01; train_on_chunk=2; batch_size=1; patience=1; # for debug purpose
+#train_percent_check=0.01; val_percent_check=0.01; train_on_chunk=2; batch_size=1; patience=1; # for debug purpose
 #
 mask_loss_type=ratiol1; # use L1 distance in loss
 #mask_loss_type=ratiol2; # use L2 distance in loss
@@ -89,7 +97,7 @@ num_hid_units=200; emb_dim=128; emb_ks=1; emb_hs=1; seqmodel_type=3861; # to red
 #
 cudnn_benchmark=0; # this flag may speed up training, if the padded signal length in each mini-batch is always fixed, e.g., always 4 seconds
 tag=""; # you can give a custom name to your experiment, but I seldomly use it
-#tag="_comparison0"; # you can give a custom name to your experiment, but I seldomly use it
+tag="_comparison$gpu"; # you can give a custom name to your experiment, but I seldomly use it
 #
 num_sources=1; # number of target sources to predict
 #
@@ -99,9 +107,9 @@ num_layers=3;
 num_layers=4;
 #
 ref_mic=0; # reference microphone index, usually just 0 (i.e., the first microphone)
-#loss_items="rix2+mag";
+loss_items="rix2+mag";
 #loss_items="rix2+mag+proj";
-loss_items="sisnrse";
+#loss_items="sisnrse";
 #loss_items="rix2+mag+proj+rix2W0p1"; # 0.1 weight for rix2
 #loss_items="rix2+mag+proj+mc"; # only for num_sources > 1
 #
@@ -110,7 +118,7 @@ mag_sf=1.0;
 #
 # Here we provide examples of using this code to do three different tasks, try them
 dataset="wsj0-mix"; samplerate=8000; num_sources=2; permutation_invariant=True; num_imics=1; # for speaker separation
-#dataset="fixarr_h1+n-s1"; samplerate=16000; num_sources=1; permutation_invariant=False; num_imics=1; # for speech dereverb
+dataset="fixarr_h1+n-s1"; samplerate=16000; num_sources=1; permutation_invariant=False; num_imics=1; # for speech dereverb
 #dataset="VoicebankDemandEXP"; samplerate=16000; num_sources=1; permutation_invariant=False; num_imics=1; # for speech enhancement. Note that for VoicebanDemand, we use its test set as validation set. This is not right, but existing studies use this way.
 #dataset="VoicebankDemandEXP"; samplerate=16000; num_sources=2; permutation_invariant=False; num_imics=1; # for speech enhancement. Note that for VoicebanDemand, we use its test set as validation set. This is not right, but existing studies use this way. Predict both speech and noise
 #

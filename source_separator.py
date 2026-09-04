@@ -13,6 +13,8 @@ from creators.model import model_creator
 import torch.backends.cudnn as cudnn
 from functools import partial
 
+from utils.my_optimizer import ReduceLROnPlateau_verbose
+
 
 class SourceSeparator(pl.LightningModule):
 
@@ -37,16 +39,37 @@ class SourceSeparator(pl.LightningModule):
         loss = self.loss(y, target_dict, training=self.model.training)
         return loss
 
+    #def on_after_backward(self):
+    #    # https://github.com/Lightning-AI/lightning/issues/4956
+    #    valid_gradients = True
+    #    for name, param in self.named_parameters():
+    #        if param.grad is not None:
+    #            valid_gradients = not (torch.isnan(param.grad).any() or torch.isinf(param.grad).any())
+    #            #valid_gradients = not torch.isnan(param.grad).any()
+    #            if not valid_gradients:
+    #                break
+    #    if not valid_gradients:
+    #        logger.info('detected inf or nan values in gradients. not updating model parameters')
+    #        self.zero_grad()
     def on_after_backward(self):
+        """
         # https://github.com/Lightning-AI/lightning/issues/4956
         valid_gradients = True
         for name, param in self.named_parameters():
             if param.grad is not None:
-                valid_gradients = not (torch.isnan(param.grad).any() or torch.isinf(param.grad).any())
-                #valid_gradients = not torch.isnan(param.grad).any()
+                #valid_gradients = not (torch.isnan(param.grad).any() or torch.isinf(param.grad).any())
+                #valid_gradients = not (~torch.isfinite(param.grad)).any()
+                valid_gradients = torch.isfinite(param.grad).all()
                 if not valid_gradients:
                     break
         if not valid_gradients:
+            logger.info('detected inf or nan values in gradients. not updating model parameters')
+            self.zero_grad()
+        """
+        try:
+            grads = [p.grad for p in self.model.parameters() if p.grad is not None]
+            val = torch.nn.utils.get_total_norm(grads, norm_type=2.0, error_if_nonfinite=True, foreach=None)
+        except RuntimeError:
             logger.info('detected inf or nan values in gradients. not updating model parameters')
             self.zero_grad()
 
@@ -137,9 +160,9 @@ class SourceSeparator(pl.LightningModule):
     def configure_optimizers(self):
         hparams = self.hparams
         optimizer = optim.Adam(self.parameters(), lr=self.hparams.learning_rate)
-        scheduler = optim.lr_scheduler.ReduceLROnPlateau(
+        scheduler = ReduceLROnPlateau_verbose(
                 optimizer, patience=self.hparams.patience,
-                factor=self.hparams.decay_factor, verbose=True)
+                factor=self.hparams.decay_factor)
 
         return {
             'optimizer': optimizer,
@@ -169,9 +192,9 @@ class SourceSeparator(pl.LightningModule):
         return model
 
     def _worker_init_fn(self, worker_id):
-        random.seed(self.hparams.seed+worker_id)
-        np.random.seed(self.hparams.seed+worker_id)
-        torch.manual_seed(self.hparams.seed+worker_id)
+        random.seed(self.hparams.seed+worker_id+self.current_epoch*101)
+        np.random.seed(self.hparams.seed+worker_id+self.current_epoch*101)
+        torch.manual_seed(self.hparams.seed+worker_id+self.current_epoch*101)
 
     def _build_data_loader(self, partition):
         shuffle = self.hparams.shuffle if partition == 'tr' else None
@@ -185,6 +208,7 @@ class SourceSeparator(pl.LightningModule):
                 shuffle=shuffle,
                 num_workers=self.hparams.num_workers,
                 worker_init_fn=self._worker_init_fn,
+                persistent_worker=True,
                 )
 
     def train_dataloader(self):

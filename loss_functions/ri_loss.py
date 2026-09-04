@@ -175,7 +175,7 @@ def riinf_pit_loss(est_ri, target_dict,
             # src_.shape is [n_batch, n_frames, n_srcs, n_omics, n_freqs]
             # weight_.shape is [n_batch, n_frames, 1, n_omics, n_freqs]
             ret_ = loss_func(est_[:,:,None] - srcs_[:,:,all_perms]) # [n_batch, n_pad_frames, n_perms, n_srcs, n_omics, n_freqs]
-            ret_ = torch.mean(ret_/weight_[:,:,None], dim=(1,4,5)) # [n_batch, n_perms, n_srcs]
+            ret_ = torch.sum(ret_, dim=(1,4,5)) / torch.sum(weight_[:,:,None], dim=(1,4,5)) # [n_batch, n_perms, n_srcs]
             ret_ = ret_.mean(dim=-1)
             return ret_ # [n_batch, n_perms]
 

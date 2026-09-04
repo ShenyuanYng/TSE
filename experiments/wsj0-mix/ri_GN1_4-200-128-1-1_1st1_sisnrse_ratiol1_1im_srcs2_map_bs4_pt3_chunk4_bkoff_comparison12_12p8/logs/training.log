@@ -1,0 +1,479 @@
+# Running on ailab03
+# Started at Sat Apr 11 10:33:27 CST 2026
+# SLURMD_NODENAME=ailab03
+# SLURM_CLUSTER_NAME=cluster
+# SLURM_CONF=/usr/local/etc/slurm.conf
+# SLURM_CPUS_ON_NODE=6
+# SLURM_CPUS_PER_TASK=5
+# SLURM_GPUS_ON_NODE=1
+# SLURM_GTIDS=0
+# SLURM_JOBID=21677
+# SLURM_JOB_ACCOUNT=wangzq_lab_users
+# SLURM_JOB_CPUS_PER_NODE=6
+# SLURM_JOB_GID=1002
+# SLURM_JOB_GPUS=2
+# SLURM_JOB_ID=21677
+# SLURM_JOB_NAME=training.sh
+# SLURM_JOB_NODELIST=ailab03
+# SLURM_JOB_NUM_NODES=1
+# SLURM_JOB_PARTITION=RTXPRO5000
+# SLURM_JOB_QOS='normal priority jobs'
+# SLURM_JOB_UID=1001
+# SLURM_JOB_USER=cse30029918
+# SLURM_LOCALID=0
+# SLURM_MEM_PER_NODE=20480
+# SLURM_NNODES=1
+# SLURM_NODEID=0
+# SLURM_NODELIST=ailab03
+# SLURM_NODE_ALIASES='(null)'
+# SLURM_NPROCS=1
+# SLURM_NTASKS=1
+# SLURM_NTASKS_PER_NODE=1
+# SLURM_OPEN_MODE=a
+# SLURM_PRIO_PROCESS=0
+# SLURM_PROCID=0
+# SLURM_SUBMIT_DIR=/home/cse30029918/example_code
+# SLURM_SUBMIT_HOST=ailab01
+# SLURM_TASKS_PER_NODE=1
+# SLURM_TASK_PID=220811
+# SLURM_TOPOLOGY_ADDR=ailab03
+# SLURM_TOPOLOGY_ADDR_PATTERN=node
+# SLURM_WORKING_CLUSTER=cluster:ailab01:6817:9728:109
+# python train.py --exp-def exp_defs/ri_default_params.yaml --gpus 1 --num-workers 4 --save-path experiments --save-name wsj0-mix//ri_GN1_4-200-128-1-1_1st1_sisnrse_ratiol1_1im_srcs2_map_bs4_pt3_chunk4_bkoff_comparison12_12p8 --feature-type ri --rms-norm 2 --model-name DPRNNTF --seqmodel-type 3861 --num-layers 4 --num-sources 2 --loss-items sisnrse --mag-sf 1.0 --masking-or-mapping 1 --samplerate 8000 --num-imics 1 --num-omics 1 --dataset wsj0-mix --max-num-mics 1 --max-num-omics 1 --data-orig-path /data1/cse30029918/wsj0-mix/2speakers/ --data-path /data1/cse30029918//wsj0-mix/2speakers/ --act-type prelu --norm-type LayerNormalization --convnormact-type 2 --batch-size 4 --permutation-invariant True --epochs 150 --inwintime 0.032 --hoptime 0.008 --window-type sqrt_hann --mask-nonlinearity linear --target-trunc-max 5 --train-percent-check 1.0 --patience 3 --val-percent-check 1.0 --hostname ailab01 --gpuidx 0 --train-on-chunk 4 --num-hid-units 200 --emb-dim 128 --emb-ks 1 --emb-hs 1 --first-conv-use-act 1 --ref-mic 0 --pad-back-or-front 0 --mask-loss-type ratiol1 --cudnn-benchmark 0 --seed 7 
+Trainer already configured with model summary callbacks: [<class 'pytorch_lightning.callbacks.model_summary.ModelSummary'>]. Skipping setting a default `ModelSummary` callback.
+GPU available: True (cuda), used: True
+TPU available: False, using: 0 TPU cores
+HPU available: False, using: 0 HPUs
+`Trainer(limit_train_batches=1.0)` was configured so 100% of the batches per epoch will be used..
+`Trainer(limit_val_batches=1.0)` was configured so 100% of the batches will be used..
+`Trainer(limit_test_batches=1.0)` was configured so 100% of the batches will be used..
+Initializing distributed: GLOBAL_RANK: 0, MEMBER: 1/1
+----------------------------------------------------------------------------------------------------
+distributed_backend=nccl
+All distributed processes registered. Starting with 1 processes
+----------------------------------------------------------------------------------------------------
+
+LOCAL_RANK: 0 - CUDA_VISIBLE_DEVICES: [2]
+
+    | Name                                    | Type                                           | Params | Mode 
+---------------------------------------------------------------------------------------------------------------------
+0   | model                                   | DPRNNTF                                        | 5.1 M  | train
+1   | model.conv0-0                           | ConvBlock                                      | 2.7 K  | train
+2   | model.conv0-0.conv                      | Conv2d                                         | 2.4 K  | train
+3   | model.conv0-0.norm                      | GroupNorm                                      | 256    | train
+4   | model.conv0-0.actfn                     | PReLU                                          | 1      | train
+5   | model.conv0-0.chomp                     | Chomp                                          | 0      | train
+6   | model.dual_rnn                          | ModuleList                                     | 5.1 M  | train
+7   | model.dual_rnn.0                        | FrameSeqAttn3U3NmUfdDualRNNBlockTFEmbViTLNFast | 1.3 M  | train
+8   | model.dual_rnn.0.intra_norm             | LayerNormalization                             | 256    | train
+9   | model.dual_rnn.0.intra_norm.layer       | LayerNorm                                      | 256    | train
+10  | model.dual_rnn.0.intra_rnn              | LSTM                                           | 528 K  | train
+11  | model.dual_rnn.0.intra_linear           | Linear                                         | 51.3 K | train
+12  | model.dual_rnn.0.inter_norm             | LayerNormalization                             | 256    | train
+13  | model.dual_rnn.0.inter_norm.layer       | LayerNorm                                      | 256    | train
+14  | model.dual_rnn.0.inter_rnn              | LSTM                                           | 528 K  | train
+15  | model.dual_rnn.0.inter_linear           | Linear                                         | 51.3 K | train
+16  | model.dual_rnn.0.attn_conv_Q            | Conv2d                                         | 4.1 K  | train
+17  | model.dual_rnn.0.attn_norm_Q            | AllHeadLayerNormalization4DCF                  | 8.3 K  | train
+18  | model.dual_rnn.0.attn_norm_Q.act        | PReLU                                          | 4      | train
+19  | model.dual_rnn.0.attn_conv_K            | Conv2d                                         | 4.1 K  | train
+20  | model.dual_rnn.0.attn_norm_K            | AllHeadLayerNormalization4DCF                  | 8.3 K  | train
+21  | model.dual_rnn.0.attn_norm_K.act        | PReLU                                          | 4      | train
+22  | model.dual_rnn.0.attn_conv_V            | Conv2d                                         | 16.5 K | train
+23  | model.dual_rnn.0.attn_norm_V            | AllHeadLayerNormalization4DCF                  | 33.0 K | train
+24  | model.dual_rnn.0.attn_norm_V.act        | PReLU                                          | 4      | train
+25  | model.dual_rnn.0.attn_concat_proj       | ConvBlock                                      | 49.5 K | train
+26  | model.dual_rnn.0.attn_concat_proj.conv  | Conv2d                                         | 16.5 K | train
+27  | model.dual_rnn.0.attn_concat_proj.norm  | LayerNormalization4DCF                         | 33.0 K | train
+28  | model.dual_rnn.0.attn_concat_proj.actfn | PReLU                                          | 1      | train
+29  | model.dual_rnn.0.attn_concat_proj.chomp | Chomp                                          | 0      | train
+30  | model.dual_rnn.1                        | FrameSeqAttn3U3NmUfdDualRNNBlockTFEmbViTLNFast | 1.3 M  | train
+31  | model.dual_rnn.1.intra_norm             | LayerNormalization                             | 256    | train
+32  | model.dual_rnn.1.intra_norm.layer       | LayerNorm                                      | 256    | train
+33  | model.dual_rnn.1.intra_rnn              | LSTM                                           | 528 K  | train
+34  | model.dual_rnn.1.intra_linear           | Linear                                         | 51.3 K | train
+35  | model.dual_rnn.1.inter_norm             | LayerNormalization                             | 256    | train
+36  | model.dual_rnn.1.inter_norm.layer       | LayerNorm                                      | 256    | train
+37  | model.dual_rnn.1.inter_rnn              | LSTM                                           | 528 K  | train
+38  | model.dual_rnn.1.inter_linear           | Linear                                         | 51.3 K | train
+39  | model.dual_rnn.1.attn_conv_Q            | Conv2d                                         | 4.1 K  | train
+40  | model.dual_rnn.1.attn_norm_Q            | AllHeadLayerNormalization4DCF                  | 8.3 K  | train
+41  | model.dual_rnn.1.attn_norm_Q.act        | PReLU                                          | 4      | train
+42  | model.dual_rnn.1.attn_conv_K            | Conv2d                                         | 4.1 K  | train
+43  | model.dual_rnn.1.attn_norm_K            | AllHeadLayerNormalization4DCF                  | 8.3 K  | train
+44  | model.dual_rnn.1.attn_norm_K.act        | PReLU                                          | 4      | train
+45  | model.dual_rnn.1.attn_conv_V            | Conv2d                                         | 16.5 K | train
+46  | model.dual_rnn.1.attn_norm_V            | AllHeadLayerNormalization4DCF                  | 33.0 K | train
+47  | model.dual_rnn.1.attn_norm_V.act        | PReLU                                          | 4      | train
+48  | model.dual_rnn.1.attn_concat_proj       | ConvBlock                                      | 49.5 K | train
+49  | model.dual_rnn.1.attn_concat_proj.conv  | Conv2d                                         | 16.5 K | train
+50  | model.dual_rnn.1.attn_concat_proj.norm  | LayerNormalization4DCF                         | 33.0 K | train
+51  | model.dual_rnn.1.attn_concat_proj.actfn | PReLU                                          | 1      | train
+52  | model.dual_rnn.1.attn_concat_proj.chomp | Chomp                                          | 0      | train
+53  | model.dual_rnn.2                        | FrameSeqAttn3U3NmUfdDualRNNBlockTFEmbViTLNFast | 1.3 M  | train
+54  | model.dual_rnn.2.intra_norm             | LayerNormalization                             | 256    | train
+55  | model.dual_rnn.2.intra_norm.layer       | LayerNorm                                      | 256    | train
+56  | model.dual_rnn.2.intra_rnn              | LSTM                                           | 528 K  | train
+57  | model.dual_rnn.2.intra_linear           | Linear                                         | 51.3 K | train
+58  | model.dual_rnn.2.inter_norm             | LayerNormalization                             | 256    | train
+59  | model.dual_rnn.2.inter_norm.layer       | LayerNorm                                      | 256    | train
+60  | model.dual_rnn.2.inter_rnn              | LSTM                                           | 528 K  | train
+61  | model.dual_rnn.2.inter_linear           | Linear                                         | 51.3 K | train
+62  | model.dual_rnn.2.attn_conv_Q            | Conv2d                                         | 4.1 K  | train
+63  | model.dual_rnn.2.attn_norm_Q            | AllHeadLayerNormalization4DCF                  | 8.3 K  | train
+64  | model.dual_rnn.2.attn_norm_Q.act        | PReLU                                          | 4      | train
+65  | model.dual_rnn.2.attn_conv_K            | Conv2d                                         | 4.1 K  | train
+66  | model.dual_rnn.2.attn_norm_K            | AllHeadLayerNormalization4DCF                  | 8.3 K  | train
+67  | model.dual_rnn.2.attn_norm_K.act        | PReLU                                          | 4      | train
+68  | model.dual_rnn.2.attn_conv_V            | Conv2d                                         | 16.5 K | train
+69  | model.dual_rnn.2.attn_norm_V            | AllHeadLayerNormalization4DCF                  | 33.0 K | train
+70  | model.dual_rnn.2.attn_norm_V.act        | PReLU                                          | 4      | train
+71  | model.dual_rnn.2.attn_concat_proj       | ConvBlock                                      | 49.5 K | train
+72  | model.dual_rnn.2.attn_concat_proj.conv  | Conv2d                                         | 16.5 K | train
+73  | model.dual_rnn.2.attn_concat_proj.norm  | LayerNormalization4DCF                         | 33.0 K | train
+74  | model.dual_rnn.2.attn_concat_proj.actfn | PReLU                                          | 1      | train
+75  | model.dual_rnn.2.attn_concat_proj.chomp | Chomp                                          | 0      | train
+76  | model.dual_rnn.3                        | FrameSeqAttn3U3NmUfdDualRNNBlockTFEmbViTLNFast | 1.3 M  | train
+77  | model.dual_rnn.3.intra_norm             | LayerNormalization                             | 256    | train
+78  | model.dual_rnn.3.intra_norm.layer       | LayerNorm                                      | 256    | train
+79  | model.dual_rnn.3.intra_rnn              | LSTM                                           | 528 K  | train
+80  | model.dual_rnn.3.intra_linear           | Linear                                         | 51.3 K | train
+81  | model.dual_rnn.3.inter_norm             | LayerNormalization                             | 256    | train
+82  | model.dual_rnn.3.inter_norm.layer       | LayerNorm                                      | 256    | train
+83  | model.dual_rnn.3.inter_rnn              | LSTM                                           | 528 K  | train
+84  | model.dual_rnn.3.inter_linear           | Linear                                         | 51.3 K | train
+85  | model.dual_rnn.3.attn_conv_Q            | Conv2d                                         | 4.1 K  | train
+86  | model.dual_rnn.3.attn_norm_Q            | AllHeadLayerNormalization4DCF                  | 8.3 K  | train
+87  | model.dual_rnn.3.attn_norm_Q.act        | PReLU                                          | 4      | train
+88  | model.dual_rnn.3.attn_conv_K            | Conv2d                                         | 4.1 K  | train
+89  | model.dual_rnn.3.attn_norm_K            | AllHeadLayerNormalization4DCF                  | 8.3 K  | train
+90  | model.dual_rnn.3.attn_norm_K.act        | PReLU                                          | 4      | train
+91  | model.dual_rnn.3.attn_conv_V            | Conv2d                                         | 16.5 K | train
+92  | model.dual_rnn.3.attn_norm_V            | AllHeadLayerNormalization4DCF                  | 33.0 K | train
+93  | model.dual_rnn.3.attn_norm_V.act        | PReLU                                          | 4      | train
+94  | model.dual_rnn.3.attn_concat_proj       | ConvBlock                                      | 49.5 K | train
+95  | model.dual_rnn.3.attn_concat_proj.conv  | Conv2d                                         | 16.5 K | train
+96  | model.dual_rnn.3.attn_concat_proj.norm  | LayerNormalization4DCF                         | 33.0 K | train
+97  | model.dual_rnn.3.attn_concat_proj.actfn | PReLU                                          | 1      | train
+98  | model.dual_rnn.3.attn_concat_proj.chomp | Chomp                                          | 0      | train
+99  | model.deconv0                           | ConvBlock                                      | 4.6 K  | train
+100 | model.deconv0.conv                      | ConvTranspose2d                                | 4.6 K  | train
+101 | model.deconv0.norm                      | Identity                                       | 0      | train
+102 | model.deconv0.actfn                     | Identity                                       | 0      | train
+103 | model.deconv0.chomp                     | Chomp                                          | 0      | train
+---------------------------------------------------------------------------------------------------------------------
+5.1 M     Trainable params
+0         Non-trainable params
+5.1 M     Total params
+20.558    Total estimated model params size (MB)
+104       Modules in train mode
+0         Modules in eval mode
+2026-04-11 10:33:33.031 | INFO     | utils.mytensorboardlogger:log_hyperparams:41 - 
+Parameters:
+2026-04-11 10:33:33.031 | INFO     | utils.mytensorboardlogger:log_hyperparams:43 - batch_size = 4
+2026-04-11 10:33:33.031 | INFO     | utils.mytensorboardlogger:log_hyperparams:43 - seed = 7
+2026-04-11 10:33:33.031 | INFO     | utils.mytensorboardlogger:log_hyperparams:43 - shuffle = True
+2026-04-11 10:33:33.031 | INFO     | utils.mytensorboardlogger:log_hyperparams:43 - num_workers = 4
+2026-04-11 10:33:33.031 | INFO     | utils.mytensorboardlogger:log_hyperparams:43 - learning_rate = 0.001
+2026-04-11 10:33:33.031 | INFO     | utils.mytensorboardlogger:log_hyperparams:43 - decay_factor = 0.5
+2026-04-11 10:33:33.031 | INFO     | utils.mytensorboardlogger:log_hyperparams:43 - patience = 3
+2026-04-11 10:33:33.031 | INFO     | utils.mytensorboardlogger:log_hyperparams:43 - gradient_clip_val = 1.0
+2026-04-11 10:33:33.031 | INFO     | utils.mytensorboardlogger:log_hyperparams:43 - epochs = 150
+2026-04-11 10:33:33.031 | INFO     | utils.mytensorboardlogger:log_hyperparams:43 - gpus = 1
+2026-04-11 10:33:33.031 | INFO     | utils.mytensorboardlogger:log_hyperparams:43 - distributed_backend = ddp
+2026-04-11 10:33:33.031 | INFO     | utils.mytensorboardlogger:log_hyperparams:43 - save_path = experiments/wsj0-mix//ri_GN1_4-200-128-1-1_1st1_sisnrse_ratiol1_1im_srcs2_map_bs4_pt3_chunk4_bkoff_comparison12_12p8/version_21677
+2026-04-11 10:33:33.031 | INFO     | utils.mytensorboardlogger:log_hyperparams:43 - save_name = wsj0-mix//ri_GN1_4-200-128-1-1_1st1_sisnrse_ratiol1_1im_srcs2_map_bs4_pt3_chunk4_bkoff_comparison12_12p8
+2026-04-11 10:33:33.031 | INFO     | utils.mytensorboardlogger:log_hyperparams:43 - train_percent_check = 1.0
+2026-04-11 10:33:33.031 | INFO     | utils.mytensorboardlogger:log_hyperparams:43 - val_percent_check = 1.0
+2026-04-11 10:33:33.032 | INFO     | utils.mytensorboardlogger:log_hyperparams:43 - test_percent_check = 1.0
+2026-04-11 10:33:33.032 | INFO     | utils.mytensorboardlogger:log_hyperparams:43 - data_orig_path = /data1/cse30029918/wsj0-mix/2speakers/
+2026-04-11 10:33:33.032 | INFO     | utils.mytensorboardlogger:log_hyperparams:43 - data_path = /data1/cse30029918//wsj0-mix/2speakers/
+2026-04-11 10:33:33.032 | INFO     | utils.mytensorboardlogger:log_hyperparams:43 - dataset = wsj0-mix
+2026-04-11 10:33:33.032 | INFO     | utils.mytensorboardlogger:log_hyperparams:43 - max_num_mics = 1
+2026-04-11 10:33:33.032 | INFO     | utils.mytensorboardlogger:log_hyperparams:43 - max_num_omics = 1
+2026-04-11 10:33:33.032 | INFO     | utils.mytensorboardlogger:log_hyperparams:43 - samplerate = 8000
+2026-04-11 10:33:33.032 | INFO     | utils.mytensorboardlogger:log_hyperparams:43 - feature_type = ri
+2026-04-11 10:33:33.032 | INFO     | utils.mytensorboardlogger:log_hyperparams:43 - fft_size = 0
+2026-04-11 10:33:33.032 | INFO     | utils.mytensorboardlogger:log_hyperparams:43 - inwintime = 0.032
+2026-04-11 10:33:33.032 | INFO     | utils.mytensorboardlogger:log_hyperparams:43 - hoptime = 0.008
+2026-04-11 10:33:33.032 | INFO     | utils.mytensorboardlogger:log_hyperparams:43 - window_type = sqrt_hann
+2026-04-11 10:33:33.032 | INFO     | utils.mytensorboardlogger:log_hyperparams:43 - train_on_chunk = 4
+2026-04-11 10:33:33.032 | INFO     | utils.mytensorboardlogger:log_hyperparams:43 - rms_norm = 2
+2026-04-11 10:33:33.032 | INFO     | utils.mytensorboardlogger:log_hyperparams:43 - loss_type = ri_inference
+2026-04-11 10:33:33.032 | INFO     | utils.mytensorboardlogger:log_hyperparams:43 - mask_loss_type = ratiol1
+2026-04-11 10:33:33.032 | INFO     | utils.mytensorboardlogger:log_hyperparams:43 - loss_items = sisnrse
+2026-04-11 10:33:33.032 | INFO     | utils.mytensorboardlogger:log_hyperparams:43 - permutation_invariant = True
+2026-04-11 10:33:33.032 | INFO     | utils.mytensorboardlogger:log_hyperparams:43 - model_name = DPRNNTF
+2026-04-11 10:33:33.032 | INFO     | utils.mytensorboardlogger:log_hyperparams:43 - num_sources = 2
+2026-04-11 10:33:33.032 | INFO     | utils.mytensorboardlogger:log_hyperparams:43 - num_imics = 1
+2026-04-11 10:33:33.032 | INFO     | utils.mytensorboardlogger:log_hyperparams:43 - num_omics = 1
+2026-04-11 10:33:33.032 | INFO     | utils.mytensorboardlogger:log_hyperparams:43 - seqmodel_type = 3861
+2026-04-11 10:33:33.032 | INFO     | utils.mytensorboardlogger:log_hyperparams:43 - num_layers = 4
+2026-04-11 10:33:33.032 | INFO     | utils.mytensorboardlogger:log_hyperparams:43 - masking_or_mapping = 1
+2026-04-11 10:33:33.032 | INFO     | utils.mytensorboardlogger:log_hyperparams:43 - mask_nonlinearity = linear
+2026-04-11 10:33:33.032 | INFO     | utils.mytensorboardlogger:log_hyperparams:43 - target_trunc_max = 5
+2026-04-11 10:33:33.032 | INFO     | utils.mytensorboardlogger:log_hyperparams:43 - act_type = prelu
+2026-04-11 10:33:33.032 | INFO     | utils.mytensorboardlogger:log_hyperparams:43 - norm_type = LayerNormalization
+2026-04-11 10:33:33.032 | INFO     | utils.mytensorboardlogger:log_hyperparams:43 - convnormact_type = 2
+2026-04-11 10:33:33.032 | INFO     | utils.mytensorboardlogger:log_hyperparams:43 - num_hid_units = 200
+2026-04-11 10:33:33.032 | INFO     | utils.mytensorboardlogger:log_hyperparams:43 - emb_dim = 128
+2026-04-11 10:33:33.032 | INFO     | utils.mytensorboardlogger:log_hyperparams:43 - emb_ks = 1
+2026-04-11 10:33:33.032 | INFO     | utils.mytensorboardlogger:log_hyperparams:43 - emb_hs = 1
+2026-04-11 10:33:33.032 | INFO     | utils.mytensorboardlogger:log_hyperparams:43 - cudnn_deterministic = False
+2026-04-11 10:33:33.032 | INFO     | utils.mytensorboardlogger:log_hyperparams:43 - cudnn_benchmark = False
+2026-04-11 10:33:33.032 | INFO     | utils.mytensorboardlogger:log_hyperparams:43 - hostname = ailab01
+2026-04-11 10:33:33.032 | INFO     | utils.mytensorboardlogger:log_hyperparams:43 - gpuidx = 0
+2026-04-11 10:33:33.032 | INFO     | utils.mytensorboardlogger:log_hyperparams:43 - first_conv_use_act = 1
+2026-04-11 10:33:33.033 | INFO     | utils.mytensorboardlogger:log_hyperparams:43 - ref_mic = 0
+2026-04-11 10:33:33.033 | INFO     | utils.mytensorboardlogger:log_hyperparams:43 - pad_back_or_front = 0
+2026-04-11 10:33:33.033 | INFO     | utils.mytensorboardlogger:log_hyperparams:43 - mag_sf = 1.0
+2026-04-11 10:33:33.033 | INFO     | utils.mytensorboardlogger:log_hyperparams:45 - Tensorboard logs: experiments/wsj0-mix//ri_GN1_4-200-128-1-1_1st1_sisnrse_ratiol1_1im_srcs2_map_bs4_pt3_chunk4_bkoff_comparison12_12p8/version_21677
+SLURM auto-requeueing enabled. Setting signal handlers.
+2026-04-11 10:33:33.539 | INFO     | datasets.paths.mixpaths:get_mixture_paths:18 - cv, len(filelist)=5000
+2026-04-11 10:33:33.815 | INFO     | datasets.paths.mixpaths:get_mixture_paths:24 - cv, sorted from long to short
+2026-04-11 10:33:39.931 | INFO     | source_separator:on_validation_epoch_end:111 - Epoch 0, Valid Loss=-0.101 loss=-0.101 sisnrse=-0.101 
+2026-04-11 10:33:39.957 | INFO     | datasets.paths.mixpaths:get_mixture_paths:18 - tr, len(filelist)=20000
+2026-04-11 10:33:40.353 | INFO     | source_separator:training_step:64 - idx=0, loss=-0.091 sisnrse=-0.091 
+2026-04-11 10:33:40.985 | INFO     | source_separator:training_step:64 - idx=1, loss=-1.328 sisnrse=-1.328 
+2026-04-11 10:33:41.476 | INFO     | source_separator:training_step:64 - idx=2, loss=-1.791 sisnrse=-1.791 
+2026-04-11 10:33:41.967 | INFO     | source_separator:training_step:64 - idx=3, loss=-2.395 sisnrse=-2.395 
+2026-04-11 10:33:42.463 | INFO     | source_separator:training_step:64 - idx=4, loss=-2.665 sisnrse=-2.665 
+2026-04-11 10:33:42.958 | INFO     | source_separator:training_step:64 - idx=5, loss=-2.829 sisnrse=-2.829 
+2026-04-11 10:33:43.450 | INFO     | source_separator:training_step:64 - idx=6, loss=-3.102 sisnrse=-3.102 
+2026-04-11 10:33:43.941 | INFO     | source_separator:training_step:64 - idx=7, loss=-3.090 sisnrse=-3.090 
+2026-04-11 10:33:44.437 | INFO     | source_separator:training_step:64 - idx=8, loss=-3.107 sisnrse=-3.107 
+2026-04-11 10:33:44.934 | INFO     | source_separator:training_step:64 - idx=9, loss=-3.238 sisnrse=-3.238 
+2026-04-11 10:33:45.431 | INFO     | source_separator:training_step:64 - idx=10, loss=-3.383 sisnrse=-3.383 
+2026-04-11 10:33:45.927 | INFO     | source_separator:training_step:64 - idx=11, loss=-3.426 sisnrse=-3.426 
+2026-04-11 10:33:46.421 | INFO     | source_separator:training_step:64 - idx=12, loss=-3.303 sisnrse=-3.303 
+2026-04-11 10:33:46.917 | INFO     | source_separator:training_step:64 - idx=13, loss=-3.202 sisnrse=-3.202 
+2026-04-11 10:33:47.412 | INFO     | source_separator:training_step:64 - idx=14, loss=-3.276 sisnrse=-3.276 
+2026-04-11 10:33:47.909 | INFO     | source_separator:training_step:64 - idx=15, loss=-3.599 sisnrse=-3.599 
+2026-04-11 10:33:48.402 | INFO     | source_separator:training_step:64 - idx=16, loss=-3.562 sisnrse=-3.562 
+2026-04-11 10:33:48.897 | INFO     | source_separator:training_step:64 - idx=17, loss=-3.534 sisnrse=-3.534 
+2026-04-11 10:33:49.391 | INFO     | source_separator:training_step:64 - idx=18, loss=-3.761 sisnrse=-3.761 
+2026-04-11 10:33:49.883 | INFO     | source_separator:training_step:64 - idx=19, loss=-3.213 sisnrse=-3.213 
+2026-04-11 10:33:50.376 | INFO     | source_separator:training_step:64 - idx=20, loss=-3.669 sisnrse=-3.669 
+2026-04-11 10:33:50.874 | INFO     | source_separator:training_step:64 - idx=21, loss=-3.254 sisnrse=-3.254 
+2026-04-11 10:33:51.372 | INFO     | source_separator:training_step:64 - idx=22, loss=-3.408 sisnrse=-3.408 
+2026-04-11 10:33:51.872 | INFO     | source_separator:training_step:64 - idx=23, loss=-3.623 sisnrse=-3.623 
+2026-04-11 10:33:52.373 | INFO     | source_separator:training_step:64 - idx=24, loss=-3.379 sisnrse=-3.379 
+2026-04-11 10:33:52.875 | INFO     | source_separator:training_step:64 - idx=25, loss=-3.507 sisnrse=-3.507 
+2026-04-11 10:33:53.373 | INFO     | source_separator:training_step:64 - idx=26, loss=-3.268 sisnrse=-3.268 
+2026-04-11 10:33:53.872 | INFO     | source_separator:training_step:64 - idx=27, loss=-3.552 sisnrse=-3.552 
+2026-04-11 10:33:54.372 | INFO     | source_separator:training_step:64 - idx=28, loss=-3.365 sisnrse=-3.365 
+2026-04-11 10:33:54.873 | INFO     | source_separator:training_step:64 - idx=29, loss=-3.346 sisnrse=-3.346 
+2026-04-11 10:33:55.372 | INFO     | source_separator:training_step:64 - idx=30, loss=-3.329 sisnrse=-3.329 
+2026-04-11 10:33:55.873 | INFO     | source_separator:training_step:64 - idx=31, loss=-3.298 sisnrse=-3.298 
+2026-04-11 10:33:56.372 | INFO     | source_separator:training_step:64 - idx=32, loss=-3.552 sisnrse=-3.552 
+2026-04-11 10:33:56.873 | INFO     | source_separator:training_step:64 - idx=33, loss=-3.349 sisnrse=-3.349 
+2026-04-11 10:33:57.373 | INFO     | source_separator:training_step:64 - idx=34, loss=-3.155 sisnrse=-3.155 
+2026-04-11 10:33:57.873 | INFO     | source_separator:training_step:64 - idx=35, loss=-3.320 sisnrse=-3.320 
+2026-04-11 10:33:58.371 | INFO     | source_separator:training_step:64 - idx=36, loss=-3.349 sisnrse=-3.349 
+2026-04-11 10:33:58.872 | INFO     | source_separator:training_step:64 - idx=37, loss=-3.500 sisnrse=-3.500 
+2026-04-11 10:33:59.372 | INFO     | source_separator:training_step:64 - idx=38, loss=-3.340 sisnrse=-3.340 
+2026-04-11 10:33:59.872 | INFO     | source_separator:training_step:64 - idx=39, loss=-3.447 sisnrse=-3.447 
+2026-04-11 10:34:00.371 | INFO     | source_separator:training_step:64 - idx=40, loss=-3.606 sisnrse=-3.606 
+2026-04-11 10:34:00.872 | INFO     | source_separator:training_step:64 - idx=41, loss=-3.229 sisnrse=-3.229 
+2026-04-11 10:34:01.371 | INFO     | source_separator:training_step:64 - idx=42, loss=-3.260 sisnrse=-3.260 
+2026-04-11 10:34:01.872 | INFO     | source_separator:training_step:64 - idx=43, loss=-3.388 sisnrse=-3.388 
+2026-04-11 10:34:02.372 | INFO     | source_separator:training_step:64 - idx=44, loss=-3.276 sisnrse=-3.276 
+2026-04-11 10:34:02.873 | INFO     | source_separator:training_step:64 - idx=45, loss=-4.109 sisnrse=-4.109 
+2026-04-11 10:34:03.372 | INFO     | source_separator:training_step:64 - idx=46, loss=-3.399 sisnrse=-3.399 
+2026-04-11 10:34:03.917 | INFO     | source_separator:training_step:64 - idx=47, loss=-3.296 sisnrse=-3.296 
+2026-04-11 10:34:04.413 | INFO     | source_separator:training_step:64 - idx=48, loss=-3.241 sisnrse=-3.241 
+2026-04-11 10:34:04.913 | INFO     | source_separator:training_step:64 - idx=49, loss=-3.214 sisnrse=-3.214 
+2026-04-11 10:34:05.411 | INFO     | source_separator:training_step:64 - idx=50, loss=-3.365 sisnrse=-3.365 
+2026-04-11 10:34:05.915 | INFO     | source_separator:training_step:64 - idx=51, loss=-3.378 sisnrse=-3.378 
+2026-04-11 10:34:06.413 | INFO     | source_separator:training_step:64 - idx=52, loss=-3.104 sisnrse=-3.104 
+2026-04-11 10:34:06.914 | INFO     | source_separator:training_step:64 - idx=53, loss=-3.236 sisnrse=-3.236 
+2026-04-11 10:34:07.413 | INFO     | source_separator:training_step:64 - idx=54, loss=-3.508 sisnrse=-3.508 
+2026-04-11 10:34:07.912 | INFO     | source_separator:training_step:64 - idx=55, loss=-3.745 sisnrse=-3.745 
+2026-04-11 10:34:08.411 | INFO     | source_separator:training_step:64 - idx=56, loss=-3.954 sisnrse=-3.954 
+2026-04-11 10:34:08.913 | INFO     | source_separator:training_step:64 - idx=57, loss=-3.688 sisnrse=-3.688 
+2026-04-11 10:34:09.411 | INFO     | source_separator:training_step:64 - idx=58, loss=-3.183 sisnrse=-3.183 
+2026-04-11 10:34:09.912 | INFO     | source_separator:training_step:64 - idx=59, loss=-3.563 sisnrse=-3.563 
+2026-04-11 10:34:10.412 | INFO     | source_separator:training_step:64 - idx=60, loss=-3.185 sisnrse=-3.185 
+2026-04-11 10:34:10.912 | INFO     | source_separator:training_step:64 - idx=61, loss=-3.007 sisnrse=-3.007 
+2026-04-11 10:34:11.412 | INFO     | source_separator:training_step:64 - idx=62, loss=-3.577 sisnrse=-3.577 
+2026-04-11 10:34:11.917 | INFO     | source_separator:training_step:64 - idx=63, loss=-3.496 sisnrse=-3.496 
+2026-04-11 10:34:12.412 | INFO     | source_separator:training_step:64 - idx=64, loss=-3.320 sisnrse=-3.320 
+2026-04-11 10:34:12.913 | INFO     | source_separator:training_step:64 - idx=65, loss=-3.165 sisnrse=-3.165 
+2026-04-11 10:34:13.412 | INFO     | source_separator:training_step:64 - idx=66, loss=-3.654 sisnrse=-3.654 
+2026-04-11 10:34:13.912 | INFO     | source_separator:training_step:64 - idx=67, loss=-3.377 sisnrse=-3.377 
+2026-04-11 10:34:14.410 | INFO     | source_separator:training_step:64 - idx=68, loss=-3.455 sisnrse=-3.455 
+2026-04-11 10:34:14.911 | INFO     | source_separator:training_step:64 - idx=69, loss=-3.354 sisnrse=-3.354 
+2026-04-11 10:34:15.411 | INFO     | source_separator:training_step:64 - idx=70, loss=-3.380 sisnrse=-3.380 
+2026-04-11 10:34:15.912 | INFO     | source_separator:training_step:64 - idx=71, loss=-3.429 sisnrse=-3.429 
+2026-04-11 10:34:16.411 | INFO     | source_separator:training_step:64 - idx=72, loss=-3.757 sisnrse=-3.757 
+2026-04-11 10:34:16.911 | INFO     | source_separator:training_step:64 - idx=73, loss=-3.974 sisnrse=-3.974 
+2026-04-11 10:34:17.411 | INFO     | source_separator:training_step:64 - idx=74, loss=-3.454 sisnrse=-3.454 
+2026-04-11 10:34:17.912 | INFO     | source_separator:training_step:64 - idx=75, loss=-3.579 sisnrse=-3.579 
+2026-04-11 10:34:18.410 | INFO     | source_separator:training_step:64 - idx=76, loss=-3.547 sisnrse=-3.547 
+2026-04-11 10:34:18.911 | INFO     | source_separator:training_step:64 - idx=77, loss=-3.727 sisnrse=-3.727 
+2026-04-11 10:34:19.411 | INFO     | source_separator:training_step:64 - idx=78, loss=-3.571 sisnrse=-3.571 
+2026-04-11 10:34:19.912 | INFO     | source_separator:training_step:64 - idx=79, loss=-3.341 sisnrse=-3.341 
+2026-04-11 10:34:20.413 | INFO     | source_separator:training_step:64 - idx=80, loss=-3.441 sisnrse=-3.441 
+2026-04-11 10:34:20.913 | INFO     | source_separator:training_step:64 - idx=81, loss=-3.388 sisnrse=-3.388 
+2026-04-11 10:34:21.413 | INFO     | source_separator:training_step:64 - idx=82, loss=-3.461 sisnrse=-3.461 
+2026-04-11 10:34:21.914 | INFO     | source_separator:training_step:64 - idx=83, loss=-3.241 sisnrse=-3.241 
+2026-04-11 10:34:22.412 | INFO     | source_separator:training_step:64 - idx=84, loss=-3.328 sisnrse=-3.328 
+2026-04-11 10:34:22.913 | INFO     | source_separator:training_step:64 - idx=85, loss=-3.317 sisnrse=-3.317 
+2026-04-11 10:34:23.413 | INFO     | source_separator:training_step:64 - idx=86, loss=-3.439 sisnrse=-3.439 
+2026-04-11 10:34:23.912 | INFO     | source_separator:training_step:64 - idx=87, loss=-3.460 sisnrse=-3.460 
+2026-04-11 10:34:24.411 | INFO     | source_separator:training_step:64 - idx=88, loss=-3.468 sisnrse=-3.468 
+2026-04-11 10:34:24.913 | INFO     | source_separator:training_step:64 - idx=89, loss=-3.347 sisnrse=-3.347 
+2026-04-11 10:34:25.412 | INFO     | source_separator:training_step:64 - idx=90, loss=-3.741 sisnrse=-3.741 
+2026-04-11 10:34:25.913 | INFO     | source_separator:training_step:64 - idx=91, loss=-3.241 sisnrse=-3.241 
+2026-04-11 10:34:26.410 | INFO     | source_separator:training_step:64 - idx=92, loss=-3.659 sisnrse=-3.659 
+2026-04-11 10:34:26.913 | INFO     | source_separator:training_step:64 - idx=93, loss=-3.835 sisnrse=-3.835 
+2026-04-11 10:34:27.411 | INFO     | source_separator:training_step:64 - idx=94, loss=-3.868 sisnrse=-3.868 
+2026-04-11 10:34:27.915 | INFO     | source_separator:training_step:64 - idx=95, loss=-3.100 sisnrse=-3.100 
+2026-04-11 10:34:28.416 | INFO     | source_separator:training_step:64 - idx=96, loss=-3.147 sisnrse=-3.147 
+2026-04-11 10:34:28.927 | INFO     | source_separator:training_step:64 - idx=97, loss=-3.000 sisnrse=-3.000 
+2026-04-11 10:34:29.531 | INFO     | source_separator:training_step:64 - idx=98, loss=-3.332 sisnrse=-3.332 
+2026-04-11 10:34:30.035 | INFO     | source_separator:training_step:64 - idx=99, loss=-3.454 sisnrse=-3.454 
+2026-04-11 10:34:30.543 | INFO     | source_separator:training_step:64 - idx=100, loss=-3.542 sisnrse=-3.542 
+2026-04-11 10:34:31.049 | INFO     | source_separator:training_step:64 - idx=101, loss=-3.323 sisnrse=-3.323 
+2026-04-11 10:34:31.551 | INFO     | source_separator:training_step:64 - idx=102, loss=-3.583 sisnrse=-3.583 
+2026-04-11 10:34:32.052 | INFO     | source_separator:training_step:64 - idx=103, loss=-3.546 sisnrse=-3.546 
+2026-04-11 10:34:32.552 | INFO     | source_separator:training_step:64 - idx=104, loss=-3.384 sisnrse=-3.384 
+2026-04-11 10:34:33.058 | INFO     | source_separator:training_step:64 - idx=105, loss=-3.246 sisnrse=-3.246 
+2026-04-11 10:34:33.566 | INFO     | source_separator:training_step:64 - idx=106, loss=-3.601 sisnrse=-3.601 
+2026-04-11 10:34:34.070 | INFO     | source_separator:training_step:64 - idx=107, loss=-3.417 sisnrse=-3.417 
+2026-04-11 10:34:34.650 | INFO     | source_separator:training_step:64 - idx=108, loss=-3.726 sisnrse=-3.726 
+2026-04-11 10:34:35.150 | INFO     | source_separator:training_step:64 - idx=109, loss=-3.747 sisnrse=-3.747 
+2026-04-11 10:34:35.649 | INFO     | source_separator:training_step:64 - idx=110, loss=-3.766 sisnrse=-3.766 
+2026-04-11 10:34:36.157 | INFO     | source_separator:training_step:64 - idx=111, loss=-2.999 sisnrse=-2.999 
+2026-04-11 10:34:36.665 | INFO     | source_separator:training_step:64 - idx=112, loss=-2.985 sisnrse=-2.985 
+2026-04-11 10:34:37.169 | INFO     | source_separator:training_step:64 - idx=113, loss=-3.123 sisnrse=-3.123 
+2026-04-11 10:34:37.670 | INFO     | source_separator:training_step:64 - idx=114, loss=-4.355 sisnrse=-4.355 
+2026-04-11 10:34:38.174 | INFO     | source_separator:training_step:64 - idx=115, loss=-3.427 sisnrse=-3.427 
+2026-04-11 10:34:38.684 | INFO     | source_separator:training_step:64 - idx=116, loss=-3.149 sisnrse=-3.149 
+2026-04-11 10:34:39.189 | INFO     | source_separator:training_step:64 - idx=117, loss=-3.145 sisnrse=-3.145 
+2026-04-11 10:34:39.715 | INFO     | source_separator:training_step:64 - idx=118, loss=-3.571 sisnrse=-3.571 
+2026-04-11 10:34:40.224 | INFO     | source_separator:training_step:64 - idx=119, loss=-3.698 sisnrse=-3.698 
+2026-04-11 10:34:40.729 | INFO     | source_separator:training_step:64 - idx=120, loss=-3.300 sisnrse=-3.300 
+2026-04-11 10:34:41.230 | INFO     | source_separator:training_step:64 - idx=121, loss=-3.357 sisnrse=-3.357 
+2026-04-11 10:34:41.738 | INFO     | source_separator:training_step:64 - idx=122, loss=-3.280 sisnrse=-3.280 
+2026-04-11 10:34:42.248 | INFO     | source_separator:training_step:64 - idx=123, loss=-3.301 sisnrse=-3.301 
+2026-04-11 10:34:42.754 | INFO     | source_separator:training_step:64 - idx=124, loss=-3.155 sisnrse=-3.155 
+2026-04-11 10:34:43.271 | INFO     | source_separator:training_step:64 - idx=125, loss=-3.660 sisnrse=-3.660 
+2026-04-11 10:34:43.783 | INFO     | source_separator:training_step:64 - idx=126, loss=-3.565 sisnrse=-3.565 
+2026-04-11 10:34:44.293 | INFO     | source_separator:training_step:64 - idx=127, loss=-3.304 sisnrse=-3.304 
+2026-04-11 10:34:44.923 | INFO     | source_separator:training_step:64 - idx=128, loss=-3.018 sisnrse=-3.018 
+2026-04-11 10:34:45.433 | INFO     | source_separator:training_step:64 - idx=129, loss=-3.195 sisnrse=-3.195 
+2026-04-11 10:34:45.942 | INFO     | source_separator:training_step:64 - idx=130, loss=-3.503 sisnrse=-3.503 
+2026-04-11 10:34:46.449 | INFO     | source_separator:training_step:64 - idx=131, loss=-3.320 sisnrse=-3.320 
+2026-04-11 10:34:46.958 | INFO     | source_separator:training_step:64 - idx=132, loss=-3.683 sisnrse=-3.683 
+2026-04-11 10:34:47.466 | INFO     | source_separator:training_step:64 - idx=133, loss=-3.128 sisnrse=-3.128 
+2026-04-11 10:34:47.966 | INFO     | source_separator:training_step:64 - idx=134, loss=-3.313 sisnrse=-3.313 
+2026-04-11 10:34:48.471 | INFO     | source_separator:training_step:64 - idx=135, loss=-3.483 sisnrse=-3.483 
+2026-04-11 10:34:48.982 | INFO     | source_separator:training_step:64 - idx=136, loss=-3.271 sisnrse=-3.271 
+2026-04-11 10:34:49.488 | INFO     | source_separator:training_step:64 - idx=137, loss=-3.577 sisnrse=-3.577 
+2026-04-11 10:34:50.041 | INFO     | source_separator:training_step:64 - idx=138, loss=-3.644 sisnrse=-3.644 
+2026-04-11 10:34:50.549 | INFO     | source_separator:training_step:64 - idx=139, loss=-4.008 sisnrse=-4.008 
+2026-04-11 10:34:51.061 | INFO     | source_separator:training_step:64 - idx=140, loss=-3.419 sisnrse=-3.419 
+2026-04-11 10:34:51.571 | INFO     | source_separator:training_step:64 - idx=141, loss=-3.879 sisnrse=-3.879 
+2026-04-11 10:34:52.081 | INFO     | source_separator:training_step:64 - idx=142, loss=-3.351 sisnrse=-3.351 
+2026-04-11 10:34:52.593 | INFO     | source_separator:training_step:64 - idx=143, loss=-3.390 sisnrse=-3.390 
+2026-04-11 10:34:53.102 | INFO     | source_separator:training_step:64 - idx=144, loss=-3.325 sisnrse=-3.325 
+2026-04-11 10:34:53.607 | INFO     | source_separator:training_step:64 - idx=145, loss=-3.274 sisnrse=-3.274 
+2026-04-11 10:34:54.114 | INFO     | source_separator:training_step:64 - idx=146, loss=-3.925 sisnrse=-3.925 
+2026-04-11 10:34:54.624 | INFO     | source_separator:training_step:64 - idx=147, loss=-3.686 sisnrse=-3.686 
+2026-04-11 10:34:55.130 | INFO     | source_separator:training_step:64 - idx=148, loss=-3.633 sisnrse=-3.633 
+2026-04-11 10:34:55.640 | INFO     | source_separator:training_step:64 - idx=149, loss=-3.495 sisnrse=-3.495 
+2026-04-11 10:34:56.144 | INFO     | source_separator:training_step:64 - idx=150, loss=-3.259 sisnrse=-3.259 
+2026-04-11 10:34:56.646 | INFO     | source_separator:training_step:64 - idx=151, loss=-3.568 sisnrse=-3.568 
+2026-04-11 10:34:57.155 | INFO     | source_separator:training_step:64 - idx=152, loss=-3.261 sisnrse=-3.261 
+2026-04-11 10:34:57.664 | INFO     | source_separator:training_step:64 - idx=153, loss=-3.433 sisnrse=-3.433 
+2026-04-11 10:34:58.169 | INFO     | source_separator:training_step:64 - idx=154, loss=-3.400 sisnrse=-3.400 
+2026-04-11 10:34:58.680 | INFO     | source_separator:training_step:64 - idx=155, loss=-3.588 sisnrse=-3.588 
+2026-04-11 10:34:59.184 | INFO     | source_separator:training_step:64 - idx=156, loss=-3.410 sisnrse=-3.410 
+2026-04-11 10:34:59.692 | INFO     | source_separator:training_step:64 - idx=157, loss=-3.647 sisnrse=-3.647 
+2026-04-11 10:35:00.201 | INFO     | source_separator:training_step:64 - idx=158, loss=-3.739 sisnrse=-3.739 
+2026-04-11 10:35:00.710 | INFO     | source_separator:training_step:64 - idx=159, loss=-3.630 sisnrse=-3.630 
+2026-04-11 10:35:01.221 | INFO     | source_separator:training_step:64 - idx=160, loss=-3.555 sisnrse=-3.555 
+2026-04-11 10:35:01.729 | INFO     | source_separator:training_step:64 - idx=161, loss=-3.639 sisnrse=-3.639 
+2026-04-11 10:35:02.238 | INFO     | source_separator:training_step:64 - idx=162, loss=-3.254 sisnrse=-3.254 
+2026-04-11 10:35:02.749 | INFO     | source_separator:training_step:64 - idx=163, loss=-3.684 sisnrse=-3.684 
+2026-04-11 10:35:03.259 | INFO     | source_separator:training_step:64 - idx=164, loss=-3.784 sisnrse=-3.784 
+2026-04-11 10:35:03.769 | INFO     | source_separator:training_step:64 - idx=165, loss=-3.238 sisnrse=-3.238 
+2026-04-11 10:35:04.278 | INFO     | source_separator:training_step:64 - idx=166, loss=-3.354 sisnrse=-3.354 
+2026-04-11 10:35:04.791 | INFO     | source_separator:training_step:64 - idx=167, loss=-3.593 sisnrse=-3.593 
+2026-04-11 10:35:05.307 | INFO     | source_separator:training_step:64 - idx=168, loss=-3.509 sisnrse=-3.509 
+2026-04-11 10:35:05.820 | INFO     | source_separator:training_step:64 - idx=169, loss=-3.326 sisnrse=-3.326 
+2026-04-11 10:35:06.327 | INFO     | source_separator:training_step:64 - idx=170, loss=-3.640 sisnrse=-3.640 
+2026-04-11 10:35:06.838 | INFO     | source_separator:training_step:64 - idx=171, loss=-3.318 sisnrse=-3.318 
+2026-04-11 10:35:07.349 | INFO     | source_separator:training_step:64 - idx=172, loss=-3.668 sisnrse=-3.668 
+2026-04-11 10:35:07.861 | INFO     | source_separator:training_step:64 - idx=173, loss=-4.221 sisnrse=-4.221 
+2026-04-11 10:35:08.373 | INFO     | source_separator:training_step:64 - idx=174, loss=-3.530 sisnrse=-3.530 
+2026-04-11 10:35:08.884 | INFO     | source_separator:training_step:64 - idx=175, loss=-2.977 sisnrse=-2.977 
+2026-04-11 10:35:09.396 | INFO     | source_separator:training_step:64 - idx=176, loss=-3.392 sisnrse=-3.392 
+2026-04-11 10:35:09.911 | INFO     | source_separator:training_step:64 - idx=177, loss=-3.080 sisnrse=-3.080 
+2026-04-11 10:35:10.457 | INFO     | source_separator:training_step:64 - idx=178, loss=-3.327 sisnrse=-3.327 
+2026-04-11 10:35:10.961 | INFO     | source_separator:training_step:64 - idx=179, loss=-3.260 sisnrse=-3.260 
+2026-04-11 10:35:11.475 | INFO     | source_separator:training_step:64 - idx=180, loss=-3.191 sisnrse=-3.191 
+2026-04-11 10:35:11.989 | INFO     | source_separator:training_step:64 - idx=181, loss=-3.509 sisnrse=-3.509 
+2026-04-11 10:35:12.500 | INFO     | source_separator:training_step:64 - idx=182, loss=-3.305 sisnrse=-3.305 
+2026-04-11 10:35:13.013 | INFO     | source_separator:training_step:64 - idx=183, loss=-3.495 sisnrse=-3.495 
+2026-04-11 10:35:13.525 | INFO     | source_separator:training_step:64 - idx=184, loss=-3.859 sisnrse=-3.859 
+2026-04-11 10:35:14.035 | INFO     | source_separator:training_step:64 - idx=185, loss=-3.406 sisnrse=-3.406 
+2026-04-11 10:35:14.543 | INFO     | source_separator:training_step:64 - idx=186, loss=-3.645 sisnrse=-3.645 
+2026-04-11 10:35:15.056 | INFO     | source_separator:training_step:64 - idx=187, loss=-3.338 sisnrse=-3.338 
+2026-04-11 10:35:15.566 | INFO     | source_separator:training_step:64 - idx=188, loss=-3.223 sisnrse=-3.223 
+2026-04-11 10:35:16.077 | INFO     | source_separator:training_step:64 - idx=189, loss=-3.380 sisnrse=-3.380 
+2026-04-11 10:35:16.586 | INFO     | source_separator:training_step:64 - idx=190, loss=-3.387 sisnrse=-3.387 
+2026-04-11 10:35:17.098 | INFO     | source_separator:training_step:64 - idx=191, loss=-3.550 sisnrse=-3.550 
+2026-04-11 10:35:17.607 | INFO     | source_separator:training_step:64 - idx=192, loss=-3.921 sisnrse=-3.921 
+2026-04-11 10:35:18.120 | INFO     | source_separator:training_step:64 - idx=193, loss=-3.735 sisnrse=-3.735 
+2026-04-11 10:35:18.634 | INFO     | source_separator:training_step:64 - idx=194, loss=-3.612 sisnrse=-3.612 
+2026-04-11 10:35:19.148 | INFO     | source_separator:training_step:64 - idx=195, loss=-3.513 sisnrse=-3.513 
+2026-04-11 10:35:19.657 | INFO     | source_separator:training_step:64 - idx=196, loss=-3.172 sisnrse=-3.172 
+2026-04-11 10:35:20.170 | INFO     | source_separator:training_step:64 - idx=197, loss=-3.455 sisnrse=-3.455 
+2026-04-11 10:35:20.689 | INFO     | source_separator:training_step:64 - idx=198, loss=-3.725 sisnrse=-3.725 
+2026-04-11 10:35:21.201 | INFO     | source_separator:training_step:64 - idx=199, loss=-3.831 sisnrse=-3.831 
+2026-04-11 10:35:21.714 | INFO     | source_separator:training_step:64 - idx=200, loss=-3.894 sisnrse=-3.894 
+2026-04-11 10:35:22.227 | INFO     | source_separator:training_step:64 - idx=201, loss=-3.607 sisnrse=-3.607 
+2026-04-11 10:35:22.739 | INFO     | source_separator:training_step:64 - idx=202, loss=-3.450 sisnrse=-3.450 
+2026-04-11 10:35:23.254 | INFO     | source_separator:training_step:64 - idx=203, loss=-3.602 sisnrse=-3.602 
+2026-04-11 10:35:23.767 | INFO     | source_separator:training_step:64 - idx=204, loss=-3.485 sisnrse=-3.485 
+2026-04-11 10:35:24.281 | INFO     | source_separator:training_step:64 - idx=205, loss=-3.812 sisnrse=-3.812 
+2026-04-11 10:35:24.794 | INFO     | source_separator:training_step:64 - idx=206, loss=-3.521 sisnrse=-3.521 
+2026-04-11 10:35:25.307 | INFO     | source_separator:training_step:64 - idx=207, loss=-3.391 sisnrse=-3.391 
+2026-04-11 10:35:25.821 | INFO     | source_separator:training_step:64 - idx=208, loss=-3.362 sisnrse=-3.362 
+2026-04-11 10:35:26.334 | INFO     | source_separator:training_step:64 - idx=209, loss=-3.625 sisnrse=-3.625 
+2026-04-11 10:35:26.845 | INFO     | source_separator:training_step:64 - idx=210, loss=-3.260 sisnrse=-3.260 
+2026-04-11 10:35:27.359 | INFO     | source_separator:training_step:64 - idx=211, loss=-3.517 sisnrse=-3.517 
+2026-04-11 10:35:27.872 | INFO     | source_separator:training_step:64 - idx=212, loss=-3.479 sisnrse=-3.479 
+2026-04-11 10:35:28.388 | INFO     | source_separator:training_step:64 - idx=213, loss=-3.520 sisnrse=-3.520 
+2026-04-11 10:35:28.902 | INFO     | source_separator:training_step:64 - idx=214, loss=-3.525 sisnrse=-3.525 
+2026-04-11 10:35:29.413 | INFO     | source_separator:training_step:64 - idx=215, loss=-3.486 sisnrse=-3.486 
+2026-04-11 10:35:29.925 | INFO     | source_separator:training_step:64 - idx=216, loss=-3.534 sisnrse=-3.534 
+2026-04-11 10:35:30.439 | INFO     | source_separator:training_step:64 - idx=217, loss=-3.982 sisnrse=-3.982 
+2026-04-11 10:35:30.992 | INFO     | source_separator:training_step:64 - idx=218, loss=-3.531 sisnrse=-3.531 
+2026-04-11 10:35:31.509 | INFO     | source_separator:training_step:64 - idx=219, loss=-3.782 sisnrse=-3.782 
+2026-04-11 10:35:32.027 | INFO     | source_separator:training_step:64 - idx=220, loss=-3.592 sisnrse=-3.592 
+2026-04-11 10:35:32.542 | INFO     | source_separator:training_step:64 - idx=221, loss=-3.894 sisnrse=-3.894 
+2026-04-11 10:35:33.056 | INFO     | source_separator:training_step:64 - idx=222, loss=-3.158 sisnrse=-3.158 
+2026-04-11 10:35:33.571 | INFO     | source_separator:training_step:64 - idx=223, loss=-3.308 sisnrse=-3.308 
+2026-04-11 10:35:34.082 | INFO     | source_separator:training_step:64 - idx=224, loss=-3.518 sisnrse=-3.518 
+2026-04-11 10:35:34.600 | INFO     | source_separator:training_step:64 - idx=225, loss=-3.416 sisnrse=-3.416 
+2026-04-11 10:35:35.113 | INFO     | source_separator:training_step:64 - idx=226, loss=-4.067 sisnrse=-4.067 
+2026-04-11 10:35:35.628 | INFO     | source_separator:training_step:64 - idx=227, loss=-3.377 sisnrse=-3.377 
+2026-04-11 10:35:36.143 | INFO     | source_separator:training_step:64 - idx=228, loss=-3.571 sisnrse=-3.571 
+2026-04-11 10:35:36.658 | INFO     | source_separator:training_step:64 - idx=229, loss=-3.377 sisnrse=-3.377 
+2026-04-11 10:35:37.171 | INFO     | source_separator:training_step:64 - idx=230, loss=-3.478 sisnrse=-3.478 
+2026-04-11 10:35:37.687 | INFO     | source_separator:training_step:64 - idx=231, loss=-3.254 sisnrse=-3.254 
+2026-04-11 10:35:38.207 | INFO     | source_separator:training_step:64 - idx=232, loss=-2.998 sisnrse=-2.998 
+2026-04-11 10:35:38.724 | INFO     | source_separator:training_step:64 - idx=233, loss=-3.917 sisnrse=-3.917 
+2026-04-11 10:35:39.237 | INFO     | source_separator:training_step:64 - idx=234, loss=-3.145 sisnrse=-3.145 
+2026-04-11 10:35:39.750 | INFO     | source_separator:training_step:64 - idx=235, loss=-3.455 sisnrse=-3.455 
+2026-04-11 10:35:40.260 | INFO     | source_separator:training_step:64 - idx=236, loss=-3.723 sisnrse=-3.723 
+2026-04-11 10:35:40.774 | INFO     | source_separator:training_step:64 - idx=237, loss=-3.337 sisnrse=-3.337 
+2026-04-11 10:35:41.288 | INFO     | source_separator:training_step:64 - idx=238, loss=-3.704 sisnrse=-3.704 
+2026-04-11 10:35:41.806 | INFO     | source_separator:training_step:64 - idx=239, loss=-3.515 sisnrse=-3.515 
+2026-04-11 10:35:42.325 | INFO     | source_separator:training_step:64 - idx=240, loss=-3.578 sisnrse=-3.578 
+2026-04-11 10:35:42.844 | INFO     | source_separator:training_step:64 - idx=241, loss=-3.552 sisnrse=-3.552 
+2026-04-11 10:35:43.356 | INFO     | source_separator:training_step:64 - idx=242, loss=-4.108 sisnrse=-4.108 
+2026-04-11 10:35:43.868 | INFO     | source_separator:training_step:64 - idx=243, loss=-3.073 sisnrse=-3.073 

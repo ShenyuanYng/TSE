@@ -195,7 +195,6 @@ class FrameSeqAttn3U3NmUfdDualRNNBlockTFEmbViTLNFast(nn.Module):
         K = K.view(-1, *K.shape[2:]) # [B*n_head, C, T, Q]
         V = V.view(-1, *V.shape[2:]) # [B*n_head, C, T, Q]
 
-        """
         if callable(getattr(F, 'scaled_dot_product_attention', None)):
             Q = Q.transpose(1,2)
             Q = Q.flatten(start_dim=2) # [B', T, C*Q]
@@ -209,23 +208,21 @@ class FrameSeqAttn3U3NmUfdDualRNNBlockTFEmbViTLNFast(nn.Module):
      
             V = F.scaled_dot_product_attention(Q, K, V) # [B', T, C*Q]
         else:
-        """
-        Q = Q.transpose(1,2)
-        Q = Q.flatten(start_dim=2) # [B', T, C*Q]
-        #
-        K = K.transpose(2,3)
-        K = K.contiguous().view([B*self.n_head, -1, old_T]) # [B', C*Q, T]
-        #
-        V = V.transpose(1,2) # [B', T, C, Q]
-        old_shape = V.shape
-        V = V.flatten(start_dim=2) # [B', T, C*Q]
-        emb_dim = Q.shape[-1]
-        #
-        #attn_mat = torch.matmul(Q, K.transpose(1,2)) / (emb_dim**0.5) # [B', T, T]
-        attn_mat = torch.matmul(Q, K) / (emb_dim**0.5) # [B', T, T]
-        attn_mat = F.softmax(attn_mat, dim=2) # [B', T, T]
-        V = torch.matmul(attn_mat, V) # [B', T, C*Q]
-
+            Q = Q.transpose(1,2)
+            Q = Q.flatten(start_dim=2) # [B', T, C*Q]
+            #
+            K = K.transpose(2,3)
+            K = K.contiguous().view([B*self.n_head, -1, old_T]) # [B', C*Q, T]
+            #
+            V = V.transpose(1,2) # [B', T, C, Q]
+            old_shape = V.shape
+            V = V.flatten(start_dim=2) # [B', T, C*Q]
+            emb_dim = Q.shape[-1]
+            #
+            #attn_mat = torch.matmul(Q, K.transpose(1,2)) / (emb_dim**0.5) # [B', T, T]
+            attn_mat = torch.matmul(Q, K) / (emb_dim**0.5) # [B', T, T]
+            attn_mat = F.softmax(attn_mat, dim=2) # [B', T, T]
+            V = torch.matmul(attn_mat, V) # [B', T, C*Q]
 
         V = V.reshape(old_shape) # [B', T, C, Q]
         V = V.transpose(1,2) # [B', C, T, Q]

@@ -4,13 +4,13 @@
 # bash Anaconda3-2020.02-Linux-x86_64.sh
 
 # create env
-conda create -n tums_cuda11p8 python=3.8.15 # make sure the conda is the installed one
+conda create -n tums_cuda12p8 python=3.9.18 # make sure the conda is the installed one
 
 # install software
-pip install -r requirements_cuda11p8.txt --no-cache-dir
+pip install -r requirements_cuda12p8.txt --no-cache-dir
 
 # remove env
-# conda remove --name tums_cuda11p8 --all
+# conda remove --name tums_cuda12p8 --all
 
 # use software source in China to speed up the installation
 # --ignore-installed

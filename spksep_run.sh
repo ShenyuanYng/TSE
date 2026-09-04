@@ -76,7 +76,7 @@ elif [ $use_slurm = "1" ] && [[ "$HOSTNAME" == ailab0* ]]; then
     num_workers=4
     slurm_workers=$((num_workers + num_gpus)) # one thread for each gpu plus number of workers for data loading
     . ./tools/cmd.sh ${num_gpus} ${slurm_workers} ""
-    nj=3
+    nj=2
     on_local_machine=0
 else
     export sdr_cmd="run.pl"
@@ -266,8 +266,8 @@ fi
 save_name=${save_name}$tag
 #
 if [ "$CONDA_DEFAULT_ENV" != "tums_cuda11p8" ]; then
-    if [ "$CONDA_DEFAULT_ENV" = "tums_cuda11p8" ]; then
-        save_name=${save_name}_11p8
+    if [ "$CONDA_DEFAULT_ENV" = "tums_cuda12p8" ]; then
+        save_name=${save_name}_12p8
     else
         exit 1;
     fi
