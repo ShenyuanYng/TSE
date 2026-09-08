@@ -25,6 +25,7 @@ Thumbs.db
 
 # Logs
 *.log
+logs/
 
 # Temporary files
 *.tmp
@@ -37,9 +38,10 @@ Thumbs.db
 # Datasets
 data/
 dataset/
-datasets/
+#datasets/
 
 # Outputs
+experiments/
 outputs/
 results/
 checkpoints/
