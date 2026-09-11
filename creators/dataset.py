@@ -1,83 +1,83 @@
-from datasets.paths.mixpaths import get_mixture_paths
-from datasets import mc_ri_dataset
+"""AudioSet dataset and path factories."""
+"""
+数据集工厂，把实验配置转换成一个可供DAtaLoader使用的AudioSetRIDataset对象
+"""
 
 
-def dataset_creator(hparams, partition, path_list=None, is_training=None,):
+#根据数据区分
+def _partition_config(hparams, partition, name):
+    prefix = {"tr": "train", "cv": "val"}[partition]
+    return getattr(hparams, f"{prefix}_{name}")
+
+#把以“秒”为单位的 STFT 参数换算成以“采样点”为单位的参数
+def _stft_config(hparams):
+    window_length = int(hparams.inwintime * hparams.samplerate)
+    hop_length = int(hparams.hoptime * hparams.samplerate)
+    if window_length % hop_length != 0:
+        raise ValueError("STFT window length must be divisible by hop length")
+    fft_size = (
+        int(hparams.fft_size * hparams.samplerate)
+        if hparams.fft_size != 0.0
+        else None
+    )
+    return window_length, hop_length, fft_size
+
+
+#收集当前分区的路径配置
+def datapath_creator(hparams, partition):
+    """Join strong annotations, weak labels, and available audio files."""
+    if hparams.dataset != "audioset_strong":
+        raise ValueError(f"Unsupported dataset: {hparams.dataset}")
+
+    from datasets.paths.audioset_paths import get_audioset_paths
+
+    return get_audioset_paths(
+        data_root=hparams.data_path,
+        audio_dir=_partition_config(hparams, partition, "audio_dir"),
+        weak_label_path=_partition_config(hparams, partition, "weak_manifest"),
+        strong_label_path=_partition_config(hparams, partition, "strong_manifest"),
+        strict=hparams.audioset_strict_paths,
+    )
+
+#根据配置创建一个完整的AudioSetRIDataset 对象
+"""
+dataset_creator()
+  ├─ 检查 dataset / feature_type / partition
+  ├─ datapath_creator()
+  │    └─ get_audioset_paths()
+  ├─ _stft_config()
+  └─ AudioSetRIDataset(...)
+"""
+def dataset_creator(hparams, partition, path_list=None, is_training=None):
+    """Create one AudioSet Strong split without importing unrelated tasks."""
+    if hparams.dataset != "audioset_strong":
+        raise ValueError(f"Unsupported dataset: {hparams.dataset}")
+    if hparams.feature_type != "ri":
+        raise ValueError(f"Unsupported feature_type: {hparams.feature_type}")
+    if partition not in {"tr", "cv"}:
+        raise ValueError(f"Unsupported partition: {partition}")
 
     if path_list is None:
-        path_list = datapath_creator(hparams, partition, is_training=is_training)
-
-    feature_type = hparams.feature_type
-    chunk_size = hparams.train_on_chunk if partition == 'tr' else None
-
+        path_list = datapath_creator(hparams, partition)
     if is_training is None:
-        is_training = partition != 'tt'
-    else:
-        pass
+        is_training = partition == "tr"
 
-    if feature_type in ['ri',]:
-        window_length = int(hparams.inwintime*hparams.samplerate)
-        hop_length = int(hparams.hoptime*hparams.samplerate)
-        assert window_length % hop_length == 0
+    from datasets.audioset_ri_dataset import AudioSetRIDataset
+    from datasets.paths.audioset_paths import resolve_path
 
-        if hparams.fft_size != 0.:
-            fft_size = int(hparams.fft_size*hparams.samplerate)
-        else:
-            fft_size = None
-
-        dataset = mc_ri_dataset.MCRIDataset(
-                path_list,
-                n_srcs=hparams.num_sources,
-                sr=hparams.samplerate, chunk_size=chunk_size,
-                rms_norm=hparams.rms_norm,
-                n_imics=hparams.num_imics, n_omics=hparams.num_omics,
-                max_num_mics=hparams.max_num_mics, max_num_omics=hparams.max_num_omics,
-                training=is_training,
-                window_length=window_length, hop_length=hop_length, fft_size=fft_size, window_type=hparams.window_type,
-                masking_or_mapping=hparams.masking_or_mapping,
-                input_feature=feature_type,
-                partition=partition,
-                )
-    else:
-        raise
-
-    return dataset
-
-
-def datapath_creator(hparams, partition, is_training=None):
-
-    sr_str_ = 'wav'+str(int(hparams.samplerate/1000))+'k'
-
-    if hparams.dataset in ['fixarr_h1+n-s1',]:
-        path_list = get_mixture_paths(
-                hparams.data_path,
-                partition=partition, sr=hparams.samplerate,
-                mix_dir='mix', src_dir_list=['s1',], reverb_src_dir_list=[],
-                sr_str_=sr_str_,
-                is_training=is_training,
-                )
-
-    elif hparams.dataset in ['wsj0-mix',]:
-        min_or_max_or_none = "min"
-        path_list = get_mixture_paths(
-                hparams.data_path,
-                partition=partition, sr=hparams.samplerate,
-                mix_dir='mix', src_dir_list=['s1','s2',], reverb_src_dir_list=[],
-                sr_str_=sr_str_,
-                min_or_max_or_none=min_or_max_or_none,        
-                is_training=is_training,
-                )
-
-    elif hparams.dataset in ['VoicebankDemandEXP',]:
-        assert hparams.num_sources in [1,2,]
-        path_list = get_mixture_paths(
-                hparams.data_path,
-                partition=partition, sr=hparams.samplerate,
-                mix_dir='mix', src_dir_list=['s%d'%(ss+1) for ss in range(hparams.num_sources)], reverb_src_dir_list=[],
-                sr_str_=sr_str_,
-                is_training=is_training,
-                )
-    else:
-        raise
-
-    return path_list
+    window_length, hop_length, fft_size = _stft_config(hparams)
+    chunk_size = hparams.train_on_chunk if partition == "tr" else None
+    return AudioSetRIDataset(
+        path_list,
+        class_map_path=resolve_path(hparams.class_map_path, hparams.data_path),
+        num_classes=hparams.num_classes, #527类别
+        sr=hparams.samplerate,
+        chunk_size=chunk_size,
+        rms_norm=hparams.rms_norm,
+        training=is_training,
+        window_length=window_length,
+        hop_length=hop_length,
+        fft_size=fft_size,
+        window_type=hparams.window_type,
+        strong_annotation_complete=hparams.strong_annotation_complete,
+    )

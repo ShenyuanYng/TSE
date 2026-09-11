@@ -56,9 +56,19 @@ while true; do
        exit 1 ;;
     # If the first command-line argument begins with "--" (e.g. --foo-bar), 
     # then work out the variable name as $name, which will equal "foo_bar".
-  --*) name=`echo "$1" | sed s/^--// | sed s/-/_/g`;
-      
-      oldval="`eval echo \\$$name`";
+	  --*) name=`echo "$1" | sed s/^--// | sed s/-/_/g`;
+
+	      # Only accept shell variable names.  The previous eval-based
+	      # assignment removed quotes inside values such as JSON/YAML lists and
+	      # also made option parsing unnecessarily unsafe.
+	      case "$name" in
+	        ''|[0-9]*|*[!a-zA-Z0-9_]*)
+	          echo "$0: invalid option name '$1'" 1>&2
+	          exit 1
+	          ;;
+	      esac
+
+	      oldval="${!name-}";
     # Work out whether we seem to be expecting a Boolean argument.
       if [ "$oldval" == "true" ] || [ "$oldval" == "false" ]; then 
 	was_bool=true;
@@ -66,9 +76,8 @@ while true; do
 	was_bool=false;
       fi
 
-    # Set the variable to the right value-- the escaped quotes make it work if
-    # the option had spaces, like --cmd "queue.pl -sync y"
-      eval $name=\"$2\"; 
+    # Assign the value literally, preserving spaces and nested quotes.
+	      printf -v "$name" '%s' "$2";
         
     # Check that Boolean-valued arguments are really Boolean.
       if $was_bool && [[ "$2" != "true" && "$2" != "false" ]]; then

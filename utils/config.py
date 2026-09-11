@@ -2,13 +2,18 @@ import argparse
 import yaml
 
 
+def yaml_value(arg_str):
+    """Parse scalar and collection CLI values without executing Python code."""
+    return yaml.safe_load(arg_str)
+
+
 def _val_to_argparse_kwargs(val):
     if isinstance(val, str):
         return {'type': strings_with_none, 'default': val}
     elif isinstance(val, bool):
         return {'type': bool_string_to_bool, 'default': val}
     else:
-        return {'type': eval, 'default': val}
+        return {'type': yaml_value, 'default': val}
 
 
 def strings_with_none(arg_str):

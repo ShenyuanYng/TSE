@@ -3,10 +3,22 @@ import torch
 import torch.nn.utils.rnn as rnn
 import numpy as np
 
+"""
+将dataset返回的多个单样本递归组合成一个batch，并对变长Numpy数组补0，同时保存每条数据的原始长度
+"""
 
+#pad_back_or_front=0 默认在序列尾部补0
 def collate_seq(batch, pad_back_or_front=0):
     elem = batch[0]
     elem_type = type(elem)
+    """
+    根据数据类型分别处理：
+    字符串：整理成字符串列表。
+    NumPy 数组：转成 float32 Tensor、补零，并返回 (padded_tensor, lengths)。
+    元组或列表：逐位置递归处理。
+    字典：逐字段递归处理。
+    其他数据：直接保留为列表
+    """
     if elem_type.__name__ == 'str':
         return [b for b in batch]
     elif elem_type.__name__ == 'ndarray':
@@ -28,9 +40,18 @@ def collate_seq(batch, pad_back_or_front=0):
         return pad_features, lengths
     elif isinstance(elem, container_abcs.Sequence):
         transposed = zip(*batch)
-        return [collate_seq(samples) for samples in transposed]
+        return [
+            collate_seq(samples, pad_back_or_front=pad_back_or_front)
+            for samples in transposed
+        ]
     elif isinstance(elem, container_abcs.Mapping):
-        return {key: collate_seq([d[key] for d in batch]) for key in elem}
+        return {
+            key: collate_seq(
+                [d[key] for d in batch],
+                pad_back_or_front=pad_back_or_front,
+            )
+            for key in elem
+        }
     else:
         # not collate
         return [b for b in batch]
