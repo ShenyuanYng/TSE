@@ -31,9 +31,10 @@ def bool_string_to_bool(bool_str):
     else:
         raise
 
-
+#读取YAML，把YAML中的每个字段变成一个命令行参数
 def yaml_to_parser(yaml_path):
-    default_hyperparams = yaml.safe_load(open(yaml_path))
+    with open(yaml_path, encoding="utf-8") as handle:
+        default_hyperparams = yaml.safe_load(handle)
     parser = argparse.ArgumentParser()
 
     for k, v in default_hyperparams.items():

@@ -1,20 +1,18 @@
 """AudioSet dataset and path factories."""
 """
-数据集工厂，把实验配置转换成一个可供DAtaLoader使用的AudioSetRIDataset对象
+数据集工厂，把实验配置转换成一个可供DAtaLoader使用的AudioSetLogMelDataset对象
 """
 
 
 #根据数据区分
 def _partition_config(hparams, partition, name):
-    prefix = {"tr": "train", "cv": "val"}[partition]
+    prefix = {"tr": "train", "cv": "val", "test": "val"}[partition]
     return getattr(hparams, f"{prefix}_{name}")
 
 #把以“秒”为单位的 STFT 参数换算成以“采样点”为单位的参数
 def _stft_config(hparams):
     window_length = int(hparams.inwintime * hparams.samplerate)
     hop_length = int(hparams.hoptime * hparams.samplerate)
-    if window_length % hop_length != 0:
-        raise ValueError("STFT window length must be divisible by hop length")
     fft_size = (
         int(hparams.fft_size * hparams.samplerate)
         if hparams.fft_size != 0.0
@@ -31,7 +29,7 @@ def datapath_creator(hparams, partition):
 
     from datasets.paths.audioset_paths import get_audioset_paths
 
-    return get_audioset_paths(
+    entries = get_audioset_paths(
         data_root=hparams.data_path,
         audio_dir=_partition_config(hparams, partition, "audio_dir"),
         weak_label_path=_partition_config(hparams, partition, "weak_manifest"),
@@ -39,22 +37,29 @@ def datapath_creator(hparams, partition):
         strict=hparams.audioset_strict_paths,
     )
 
-#根据配置创建一个完整的AudioSetRIDataset 对象
+    if partition == "tr":
+        return entries
+    from datasets.eval_split import split_eval
+    return split_eval(entries, hparams.data_path, hparams.eval_split_path,
+                      hparams.eval_test_fraction, hparams.eval_split_seed)[partition]
+
+
+#根据配置创建一个完整的AudioSetLogMelDataset 对象
 """
 dataset_creator()
   ├─ 检查 dataset / feature_type / partition
   ├─ datapath_creator()
   │    └─ get_audioset_paths()
   ├─ _stft_config()
-  └─ AudioSetRIDataset(...)
+  └─ AudioSetLogMelDataset(...)
 """
 def dataset_creator(hparams, partition, path_list=None, is_training=None):
     """Create one AudioSet Strong split without importing unrelated tasks."""
     if hparams.dataset != "audioset_strong":
         raise ValueError(f"Unsupported dataset: {hparams.dataset}")
-    if hparams.feature_type != "ri":
+    if hparams.feature_type != "logmel":
         raise ValueError(f"Unsupported feature_type: {hparams.feature_type}")
-    if partition not in {"tr", "cv"}:
+    if partition not in {"tr", "cv", "test"}:
         raise ValueError(f"Unsupported partition: {partition}")
 
     if path_list is None:
@@ -62,12 +67,13 @@ def dataset_creator(hparams, partition, path_list=None, is_training=None):
     if is_training is None:
         is_training = partition == "tr"
 
-    from datasets.audioset_ri_dataset import AudioSetRIDataset
+    from datasets.audioset_logmel_dataset import AudioSetLogMelDataset
     from datasets.paths.audioset_paths import resolve_path
 
     window_length, hop_length, fft_size = _stft_config(hparams)
     chunk_size = hparams.train_on_chunk if partition == "tr" else None
-    return AudioSetRIDataset(
+#创建AudioSetLogMelDataset
+    return AudioSetLogMelDataset(
         path_list,
         class_map_path=resolve_path(hparams.class_map_path, hparams.data_path),
         num_classes=hparams.num_classes, #527类别
@@ -80,4 +86,5 @@ def dataset_creator(hparams, partition, path_list=None, is_training=None):
         fft_size=fft_size,
         window_type=hparams.window_type,
         strong_annotation_complete=hparams.strong_annotation_complete,
+        n_mels=getattr(hparams, "n_mels", 64),
     )

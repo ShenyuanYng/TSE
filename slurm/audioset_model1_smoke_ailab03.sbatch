@@ -19,8 +19,13 @@ cd "$project_root"
 test -x run.sh
 test -d "$data_root/audio/balance_wav"
 test -d "$data_root/audio/unbalanced_wav"
-test -d "$data_root/audio/valid_wav"
-test -f "$data_root/metadata/audioset_train_strong.tsv"
+test -d "$data_root/audio/eval_wav"
+for manifest in class_labels_indices.csv balanced_train_segments.csv unbalanced_train_segments.csv eval_segments.csv audioset_train_strong.tsv audioset_eval_strong.tsv; do
+    if [[ ! -f "$data_root/metadata/$manifest" ]]; then
+        echo "Missing metadata: $data_root/metadata/$manifest" >&2
+        exit 1
+    fi
+done
 
 echo "job_id=$SLURM_JOB_ID"
 echo "hostname=$HOSTNAME"
@@ -32,8 +37,10 @@ export PYTHONUNBUFFERED=1
 ./run.sh \
     --accelerator gpu \
     --devices 1 \
+    --test-after-fit false \
     --epochs 1 \
+    --num-jobs 1 \
     --batch-size 2 \
-    --train-percent-check 0.001 \
-    --val-percent-check 0.001 \
+    --train-percent-check 10 \
+    --val-percent-check 10 \
     --tag "_smoke_ailab03_job${SLURM_JOB_ID}"

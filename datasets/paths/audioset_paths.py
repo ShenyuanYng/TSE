@@ -1,11 +1,4 @@
-"""Join AudioSet Strong clips with their audio and weak labels.
-
-The official weak labels are CSV files with the columns
-``YTID,start_seconds,end_seconds,positive_labels``.  The official strong labels
-are TSV files containing ``clip_id,onset,offset,MID``.  This module joins either
-format to locally downloaded/cut WAV files without imposing a private manifest
-format on the project.
-"""
+from __future__ import annotations
 
 """
 把AudioSet的音频文件，弱标签csv，强标签tsv按照clip_id对齐，最后整理成模型dataset可以使用的数据列表
@@ -19,12 +12,6 @@ abc123_0       1.2      3.5       /m/09x0r
 abc123_0       6.1      8.4       /m/05zppz
 
 """
-
-
-
-
-from __future__ import annotations
-
 import csv
 import itertools
 import os

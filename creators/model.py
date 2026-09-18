@@ -5,12 +5,12 @@
 """
 def _create_audioset_crnn(hparams):
     from nets.audioset_crnn import AudioSetCRNN
-
+    #将模型参数传进去
     return AudioSetCRNN(
         num_classes=hparams.num_classes,
-        num_imics=hparams.num_imics,
         conv_channels=hparams.audioset_conv_channels,#[32,64,96]三个CNN块的输出通道
         temporal_hidden=hparams.audioset_temporal_hidden,#GRU每个方向的隐藏维度
+        embedding_dim=hparams.audioset_embedding_dim,#类别 embedding 的独立维度 D
         rnn_layers=hparams.audioset_rnn_layers,#GRU层数
         dropout=hparams.audioset_dropout,#CNN,GRU和融合层使用的dropout
     )

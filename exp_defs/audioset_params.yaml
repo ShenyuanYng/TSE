@@ -6,7 +6,7 @@ seed: 7
 shuffle: true
 num_workers: 4
 
-learning_rate: 0.0003
+learning_rate: 0.001
 decay_factor: 0.5
 patience: 5
 gradient_clip_val: 5.0
@@ -23,7 +23,7 @@ val_percent_check: 1.0
 dataset: audioset_strong
 task_type: audioset_strong
 collate_type: sequence
-feature_type: ri
+feature_type: logmel
 data_path: data/audioset
 class_map_path: metadata/class_labels_indices.csv
 train_audio_dir: [audio/train]
@@ -37,18 +37,18 @@ strong_annotation_complete: true
 
 samplerate: 16000
 inwintime: 0.032
-hoptime: 0.008
+hoptime: 0.016
 fft_size: 0
-window_type: sqrt_hann
+window_type: hann
 rms_norm: 2
 train_on_chunk: 10.0
 pad_back_or_front: 0
 
 model_name: AudioSetCRNN
 num_classes: 527
-num_imics: 1
 audioset_conv_channels: [32, 64, 96]
 audioset_temporal_hidden: 128
+audioset_embedding_dim: 128
 audioset_rnn_layers: 2
 audioset_dropout: 0.2
 
@@ -58,3 +58,11 @@ balance_positive_negative: true
 
 cudnn_deterministic: 1
 cudnn_benchmark: 0
+
+n_mels: 64
+eval_test_fraction: 0.5
+eval_split_seed: 7
+eval_split_path: metadata/eval_split.json
+# Enable only for the final chosen experiment.
+test_after_fit: false
+frame_accuracy_threshold: 0.5

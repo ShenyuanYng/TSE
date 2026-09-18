@@ -49,7 +49,6 @@ def audioset_strong_loss(
         raise TypeError("AudioSetStrongLoss expects the model output dictionary")
 
     frame_logits = predictions["frame_logits"]
-    
     strong_targets = _tensor(target_dict["strong_labels"], "strong_labels").to(
         device=frame_logits.device, dtype=frame_logits.dtype
     )
@@ -57,25 +56,17 @@ def audioset_strong_loss(
     strong_mask = _tensor(target_dict["strong_mask"], "strong_mask").to(
         device=frame_logits.device, dtype=frame_logits.dtype
     )
-    #三个必须完全同形[B,T,C]
+    #三个必须完全同形[B,T]
     if frame_logits.shape != strong_targets.shape or frame_logits.shape != strong_mask.shape:
         raise ValueError(
-            "frame prediction, strong target, and strong mask must all have shape [B,T,C]: "
+            "frame prediction, strong target, and strong mask must all have shape [B,T]: "
             f"{tuple(frame_logits.shape)}, {tuple(strong_targets.shape)}, "
             f"{tuple(strong_mask.shape)}"
         )
 
-    """
-    frame_mask 是模型的输出之一，有效帧掩码[B, T] 标记哪些时间帧是真实音频，
-    frame_mask[b,t] = True 表示第 b 个样本的第 t 帧不是 batch padding。
-
-    strong_mask是这个强标签位置是否可信，是否参与loss
-
-    unsqueeze(-1)先由[B,T]->[B,T,1],随后相乘然后通过广播规则把最后一维扩展到527
-    """
     valid_frames = predictions.get("frame_mask")
     if valid_frames is not None:
-        strong_mask = strong_mask * valid_frames.unsqueeze(-1).to(strong_mask.dtype)
+        strong_mask = strong_mask * valid_frames.to(strong_mask.dtype)
 
     #创建正样本权重
     positive_weight = torch.as_tensor(
@@ -87,11 +78,11 @@ def audioset_strong_loss(
     BCE 二元交叉熵  逐元素计算BCE
     """
     frame_bce = F.binary_cross_entropy_with_logits(
-        frame_logits,#[B,T,C]
-        strong_targets,#[B,T,C]
+        frame_logits,#[B,T]
+        strong_targets,#[B,T]
         reduction="none",
         pos_weight=positive_weight,#标量
-    )#输出frame_bce：[B,T,C]
+    )#输出frame_bce：[B,T]
     if balance_positive_negative:
         strong_bce = _balanced_mean(frame_bce, strong_targets, strong_mask)
     elif strong_mask.sum().item() > 0:

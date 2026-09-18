@@ -39,6 +39,8 @@ def trainer_device_config(hparams):
     return accelerator, devices, strategy
 
 
+
+#checkpoint保存和恢复
 def _checkpoint_callback(save_path):
     return BacktrackingModelCheckpointUpgrade(
         dirpath=save_path,
@@ -59,27 +61,21 @@ def _resume_checkpoint(callback, run_dir):
     if not os.path.exists(checkpoint_path):
         return None
 
-    info_path = os.path.join(run_dir, "mylast_best_info.pt")
+    # Lightning restores model, optimizer, scheduler, loops and callback states
+    # directly from this checkpoint. The historical .pt sidecar may be stale.
     loguru.logger.info("loading mylast.ckpt from {}", checkpoint_path)
-    info = torch.load(info_path, weights_only=False)
-    callback._last_global_step_saved = info[0]
-    callback.current_score = info[1]
-    callback.best_k_models = info[2]
-    callback.kth_best_model_path = info[3]
-    callback.best_model_score = info[4]
-    callback.best_model_path = info[5]
-    callback.last_model_path = info[6]
-    loguru.logger.info("last_epoch={}", info[7])
     return checkpoint_path
 
 
-def main(hparams):
+def main(hparams, resume_run_dir=None, checkpoint_dir=None):
     if hparams.seed is None:
         hparams.seed = random.getrandbits(16)
     hparams.cudnn_deterministic = bool(hparams.cudnn_deterministic)
     hparams.cudnn_benchmark = bool(hparams.cudnn_benchmark)
     cudnn.deterministic = hparams.cudnn_deterministic
     cudnn.benchmark = hparams.cudnn_benchmark
+
+    #固定随机状态，让模型初始化，数据随机裁剪等行为尽量可重复
     random.seed(hparams.seed)
     np.random.seed(hparams.seed)
     torch.manual_seed(hparams.seed)
@@ -89,16 +85,26 @@ def main(hparams):
         save_dir=hparams.save_path,
         name=hparams.save_name,
     )
+
+    #创建日志目录
     hparams.save_path = os.path.join(
         hparams.save_path,
         tensorboard.name,
         f"version_{tensorboard.version}",
     )
+
+    #检查是否续训
     run_dir = os.path.dirname(hparams.save_path)
-    checkpoint = _checkpoint_callback(hparams.save_path)
+    if resume_run_dir is not None:
+        run_dir = resume_run_dir
+    checkpoint = _checkpoint_callback(checkpoint_dir or hparams.save_path)
     resume_from = _resume_checkpoint(checkpoint, run_dir)
+    if resume_run_dir is not None and resume_from is None:
+        raise FileNotFoundError(f"Resume checkpoint missing in {run_dir}")
     accelerator, devices, strategy = trainer_device_config(hparams)
 
+
+    #创建lightning trainer
     trainer = Trainer(
         min_epochs=hparams.epochs,
         max_epochs=hparams.epochs,
@@ -117,9 +123,16 @@ def main(hparams):
         deterministic=hparams.cudnn_deterministic,
         num_sanity_val_steps=10,
     )
-    trainer.fit(SourceSeparator(hparams), ckpt_path=resume_from)
+
+    #sourcespearator 是训练外壳
+    model = SourceSeparator(hparams)
+
+    trainer.fit(model, ckpt_path=resume_from)
+    if hparams.test_after_fit:
+        trainer.test(model, ckpt_path="best")
 
 
+#程序入口
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -127,6 +140,9 @@ if __name__ == "__main__":
         type=str,
         default="exp_defs/audioset_params.yaml",
     )
+    """
+    取参数，只把--exp-def取出来，知道应该读取那个YAML,剩余参数放入other_options
+    """
     args, other_options = parser.parse_known_args()
     hyperparams = yaml_to_parser(args.exp_def).parse_args(other_options)
     main(hyperparams)

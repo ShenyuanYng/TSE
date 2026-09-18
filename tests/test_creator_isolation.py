@@ -24,18 +24,19 @@ class CreatorIsolationTest(unittest.TestCase):
         hparams = Namespace(
             model_name="AudioSetCRNN",
             num_classes=3,
-            num_imics=1,
             audioset_conv_channels=[4, 8],
             audioset_temporal_hidden=4,
+            audioset_embedding_dim=3,
             audioset_rnn_layers=1,
             audioset_dropout=0.0,
         )
         with patch.dict(sys.modules, {"nets.audioset_crnn": module}):
             model = model_creator(hparams)
         self.assertEqual(model.kwargs["num_classes"], 3)
+        self.assertEqual(model.kwargs["embedding_dim"], 3)
 
     def test_dataset_creator_reads_only_dataset_options(self):
-        dataset_module = types.ModuleType("datasets.audioset_ri_dataset")
+        dataset_module = types.ModuleType("datasets.audioset_logmel_dataset")
         path_module = types.ModuleType("datasets.paths.audioset_paths")
 
         class FakeAudioSetDataset:
@@ -43,11 +44,11 @@ class CreatorIsolationTest(unittest.TestCase):
                 self.path_list = path_list
                 self.kwargs = kwargs
 
-        dataset_module.AudioSetRIDataset = FakeAudioSetDataset
+        dataset_module.AudioSetLogMelDataset = FakeAudioSetDataset
         path_module.resolve_path = lambda path, root: f"{root}/{path}"
         hparams = Namespace(
             dataset="audioset_strong",
-            feature_type="ri",
+            feature_type="logmel",
             data_path="data",
             class_map_path="classes.csv",
             num_classes=3,
@@ -57,11 +58,11 @@ class CreatorIsolationTest(unittest.TestCase):
             inwintime=0.032,
             hoptime=0.016,
             fft_size=0,
-            window_type="sqrt_hann",
+            window_type="hann",
             strong_annotation_complete=True,
         )
         modules = {
-            "datasets.audioset_ri_dataset": dataset_module,
+            "datasets.audioset_logmel_dataset": dataset_module,
             "datasets.paths.audioset_paths": path_module,
         }
         with patch.dict(sys.modules, modules):
@@ -102,7 +103,7 @@ class CreatorIsolationTest(unittest.TestCase):
 
         model = RecordingModel()
         target = {"strong_labels": "target"}
-        inputs = {"mix_ri": "audio", "weak_labels": "weak"}
+        inputs = {"logmel": "audio", "weak_labels": "weak"}
         audioset = task_creator(
             Namespace(task_type="audioset_strong", loss_type="audioset_strong")
         )
