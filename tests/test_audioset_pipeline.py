@@ -115,6 +115,45 @@ class AudioSetModel1Test(unittest.TestCase):
                 os.path.join(unbalanced_audio, "shared_id.wav"),
             )
 
+    def test_logmel_short_silence_has_finite_floor_and_aligned_frames(self):
+        with tempfile.TemporaryDirectory() as root:
+            audio_path = os.path.join(root, "short.wav")
+            class_map = os.path.join(root, "classes.csv")
+            with open(class_map, "w") as handle:
+                handle.write("index,mid,display_name\n0,/m/a,A\n")
+            entries = [{"audio": audio_path, "id": "short", "weak_mids": ["/m/a"],
+                        "events": []}]
+            dataset = AudioSetLogMelDataset(entries, class_map, num_classes=1,
+                                           training=False, rms_norm=0)
+            # Shorter than half an FFT window: reflect padding would fail here.
+            for samples in (1, 100, 256):
+                with self.subTest(samples=samples):
+                    sf.write(audio_path, np.zeros(samples, dtype=np.float32), 16000)
+                    inputs, targets = dataset[0]
+                    features = inputs["logmel"]
+                    self.assertEqual(features.shape, (samples // 256 + 1, 64))
+                    self.assertEqual(features.dtype, np.float32)
+                    np.testing.assert_allclose(features, np.log(1e-10), atol=1e-6)
+                    np.testing.assert_array_equal(
+                        targets["strong_mask"], targets["frame_times"] < samples / 16000)
+
+    def test_logmel_uses_natural_log_power_with_custom_feature_settings(self):
+        with tempfile.TemporaryDirectory() as root:
+            class_map = os.path.join(root, "classes.csv")
+            with open(class_map, "w") as handle:
+                handle.write("index,mid,display_name\n0,/m/a,A\n")
+            dataset = AudioSetLogMelDataset(
+                [{"id": "clip", "weak_mids": ["/m/a"], "events": []}],
+                class_map, num_classes=1, sr=8000, window_length=256,
+                fft_size=512, hop_length=128, n_mels=32, training=False,
+            )
+            waveform = np.random.default_rng(7).normal(size=1024).astype(np.float32)
+            features = dataset._logmel_features(waveform)
+            louder = dataset._logmel_features(2 * waveform)
+            self.assertEqual(features.shape, (9, 32))
+            # Doubling amplitude quadruples power; natural-log features shift by ln(4).
+            np.testing.assert_allclose(louder - features, np.log(4), atol=2e-6)
+
     def test_audio_and_weak_label_input_strong_loss_backward(self):
         with tempfile.TemporaryDirectory() as root:
             audio_dir = os.path.join(root, "audio")

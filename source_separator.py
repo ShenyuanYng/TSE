@@ -243,13 +243,13 @@ class SourceSeparator(pl.LightningModule):
     def _build_data_loader(self, partition):
         dataset = dataset_creator(self.hparams, partition, path_list=self.split_paths[partition])
         return data.DataLoader(
-            dataset,
+            dataset,#单个样本的数据集
             self.hparams.batch_size,
-            collate_fn=self.collate_fn,
-            shuffle=bool(self.hparams.shuffle) if partition == "tr" else False,
-            num_workers=self.hparams.num_workers,
-            worker_init_fn=self._worker_init_fn,
-            persistent_workers=self.hparams.num_workers > 0,
+            collate_fn=self.collate_fn,#将单样本合并为batch，并处理补0
+            shuffle=bool(self.hparams.shuffle) if partition == "tr" else False,#训练集按配置打乱，验证和测试不打乱
+            num_workers=self.hparams.num_workers,#加载数据的子进程数量
+            worker_init_fn=self._worker_init_fn,#初始化加载进程的随机种子
+            persistent_workers=self.hparams.num_workers > 0,#保留加载进程，避免每轮重启
         )
     def train_dataloader(self):
         return self._build_data_loader("tr")
@@ -259,7 +259,8 @@ class SourceSeparator(pl.LightningModule):
     def val_dataloader(self):
         return self._build_data_loader("cv")
 
-    """先整理数据清单，先确定train/validation/test分别有哪些样本
+    """
+    先整理数据清单，先确定train/validation/test分别有哪些样本
     """
     def setup(self, stage=None):
         if self.hparams.pad_back_or_front != 0:

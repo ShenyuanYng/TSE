@@ -32,11 +32,14 @@ The training split is the intersection of:
 
 Each clip with weak labels `[A,B,C]` becomes three examples: `mix+A`,
 `mix+B`, `mix+C`. Each one-hot condition selects a learned class embedding,
-which is multiplied elementwise with the temporal audio representation.
+which is concatenated with the temporal audio representation.
 Targets and outputs are `[B,T]` for
 that condition only; weak labels are never copied into the frame targets.
 
-Features are natural-log Mel power spectra (HTK scale, 64 triangular filters,
+Features use `torchaudio.transforms.MelSpectrogram`, followed by a floor of
+`1e-10` and the natural logarithm. The library handles STFT, power and Mel
+filtering; the output is transposed from `[n_mels,T]` to `[T,n_mels]`.
+These are natural-log Mel power spectra (HTK scale, 64 triangular filters,
 0–8 kHz, floor 1e-10), extracted at 16 kHz with a periodic Hann window of 512
 samples (32 ms) and hop 256 (16 ms), giving 50% overlap. STFT uses centered
 constant padding; frame centers are `t * 256 / 16000`, with a crop offset during
@@ -45,6 +48,10 @@ exactly at 10 seconds. Frames at/after audio end
 are excluded from supervision. Dataset features are `[T,64]`, collated as
 `[B,T,64]`; CNN adds a feature channel `[B,1,T,64]`. There are no microphone
 or real/imaginary dimensions. Learning rate defaults to 0.001 everywhere.
+
+`requirements.txt` pins `torchaudio==2.8.0` to match `torch==2.8.0`. Install the
+matching TorchAudio CPU/CUDA build in the training environment before launching.
+The existing `run.sh` feature parameters still control the library transform.
 
 ## Class embedding and fusion
 

@@ -5,6 +5,7 @@ import numpy as np
 import soundfile as sf
 import torch
 from torch.utils.data import Dataset
+from torchaudio.transforms import MelSpectrogram
 from datasets.paths.audioset_paths import load_class_map
 """
 准备数据，读取AudioSet音频，并把WAV音频转换成模型能够直接使用的log-mel特征，同时准备对应的weak label 和strong label
@@ -30,20 +31,27 @@ class AudioSetLogMelDataset(Dataset):
             raise ValueError("logMel uses a periodic Hann window")
         if not 0 < hop_length <= window_length <= self.fft_size or n_mels < 1:
             raise ValueError("Invalid logMel dimensions")
-        self.window = torch.hann_window(window_length, periodic=True)
-        # HTK Mel scale, triangular filters, power input, natural logarithm.
-        #滤波器的构造  2595× log10(1 + f / 700)
-        mel_max = 2595 * np.log10(1 + (sr / 2) / 700)
-        #在mel坐标上均匀取66个点，然后转回Hz
-        edges = 700 * (10 ** (torch.linspace(0, mel_max, n_mels + 2) / 2595) - 1)
-        #构造FFT每个频率bin的实际频率
-        frequencies = torch.linspace(0, sr / 2, self.fft_size // 2 + 1)[:, None]#[257,1]
-        #分别计算每个三角滤波器的上升边和下降边
-        rising = (frequencies - edges[:-2]) / (edges[1:-1] - edges[:-2])
-        falling = (edges[2:] - frequencies) / (edges[2:] - edges[1:-1])
-        #得到标准的三角形Mel滤波器矩阵
-        self.mel_filters = torch.minimum(rising, falling).clamp_min(0)
-        if (self.mel_filters.sum(0) == 0).any():
+        # 库函数完成 STFT、功率谱和 Mel 滤波；窗口和滤波器在初始化时缓存。
+        # 显式保持原有 HTK 标度、周期 Hann 窗和居中零填充，保证帧时间对齐。
+        self.mel_spectrogram = MelSpectrogram(
+            sample_rate=sr,
+            n_fft=self.fft_size,
+            win_length=window_length,
+            hop_length=hop_length,
+            f_min=0.0,
+            f_max=sr / 2,
+            pad=0,
+            n_mels=n_mels,
+            window_fn=torch.hann_window,
+            wkwargs={"periodic": True},
+            power=2.0,
+            normalized=False,
+            center=True,
+            pad_mode="constant",
+            norm=None,
+            mel_scale="htk",
+        )
+        if (self.mel_spectrogram.mel_scale.fb.sum(0) == 0).any():
             raise ValueError("Empty Mel filter; reduce n_mels or increase fft_size")
         self.samples = []
         unknown_weak, unknown_strong = set(), set()
@@ -105,12 +113,9 @@ class AudioSetLogMelDataset(Dataset):
 
     #把waveform转换成Log-Mel Spectrogram
     def _logmel_features(self, waveform):
-        spectrum = torch.stft(torch.from_numpy(waveform), n_fft=self.fft_size,
-                              hop_length=self.hop_length, win_length=self.window_length,
-                              window=self.window, center=True, pad_mode="constant",
-                              return_complex=True)
-        mel = spectrum.abs().square().transpose(0, 1) @ self.mel_filters
-        return mel.clamp_min(1e-10).log().numpy().astype(np.float32)
+        mel = self.mel_spectrogram(torch.from_numpy(waveform))  # [n_mels,T]
+        # 保持自然对数功率谱，并转为模型使用的 [T,n_mels]。
+        return mel.clamp_min(1e-10).log().transpose(0, 1).numpy().astype(np.float32)
 
     #计算 Log-Mel 中每一个时间帧对应原音频中的时间位置
     def _frame_centers(self, num_frames, crop_start_sample):

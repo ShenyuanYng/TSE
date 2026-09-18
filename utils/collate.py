@@ -18,6 +18,19 @@ def collate_seq(batch, pad_back_or_front=0):
     元组或列表：逐位置递归处理。
     字典：逐字段递归处理。
     其他数据：直接保留为列表
+    model_input = {
+    "logmel":      (Tensor[B, T_max, 64], lengths[B]),
+    "weak_labels": (Tensor[B, 527],       lengths[B]),
+}
+
+target_dict = {
+    "strong_labels": (Tensor[B, T_max], lengths[B]),
+    "strong_mask":   (Tensor[B, T_max], lengths[B]),
+    "frame_times":   (Tensor[B, T_max], lengths[B]),
+    "class_index":   [类别编号, ...],
+    "utt_id":        [音频ID, ...],
+    "audio_path":    [音频路径, ...],
+}
     """
     if elem_type.__name__ == 'str':
         return [b for b in batch]
