@@ -46,6 +46,7 @@ class RunSubmissionTest(unittest.TestCase):
                 self.assertIn(value, args)
             launcher_index = args.index(str(root / "spksep_run.sh"))
             queued_args = args[launcher_index + 1:]
+            self.assertNotIn("--audioset-dropout", queued_args)
             expected = {"--batch-size": "3", "--num-jobs": "2", "--hoptime": "0.016",
                         "--audioset-embedding-dim": "64", "--frame-accuracy-threshold": "0.7",
                         "--slurm-mem": "48G", "--slurm-cpus-per-task": "8",

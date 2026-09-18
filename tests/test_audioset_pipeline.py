@@ -14,10 +14,26 @@ from utils.collate import collate_seq
 
 
 class AudioSetModel1Test(unittest.TestCase):
+    def test_training_predictions_have_no_dropout_randomness(self):
+        torch.manual_seed(7)
+        model = AudioSetCRNN(num_classes=3, conv_channels=[4, 8], temporal_hidden=4,
+                             rnn_layers=2, embedding_dim=3)
+        inputs = {"logmel": (torch.randn(2, 7, 16), torch.tensor([7, 5])),
+                  "weak_labels": torch.tensor([[1., 0., 0.], [0., 1., 0.]])}
+        # Use two GRU layers so this also covers recurrent inter-layer dropout.
+        with torch.no_grad():
+            model.train()
+            first = model(inputs)["frame_logits"]
+            second = model(inputs)["frame_logits"]
+            model.eval()
+            evaluation = model(inputs)["frame_logits"]
+        torch.testing.assert_close(first, second)
+        torch.testing.assert_close(first, evaluation)
+
     def test_embedding_controls_predictions_and_receives_gradients(self):
         torch.manual_seed(7)
         model = AudioSetCRNN(num_classes=3, conv_channels=[4], temporal_hidden=4,
-                             rnn_layers=1, dropout=0.0, embedding_dim=3).eval()
+                             rnn_layers=1, embedding_dim=3).eval()
         audio = torch.randn(1, 7, 16).expand(2, -1, -1).clone()
         inputs = {"logmel": (audio, torch.tensor([7, 7])),
                   "weak_labels": torch.tensor([[1., 0., 0.], [0., 1., 0.]])}
@@ -46,7 +62,7 @@ class AudioSetModel1Test(unittest.TestCase):
         for dim in (1, 3, 128):
             with self.subTest(dim=dim):
                 model = AudioSetCRNN(num_classes=3, conv_channels=[4], temporal_hidden=4,
-                                     rnn_layers=1, dropout=0.0, embedding_dim=dim).eval()
+                                     rnn_layers=1, embedding_dim=dim).eval()
                 captured = []
                 hook = model.fusion[0].register_forward_pre_hook(
                     lambda module, args: captured.append(args[0].detach()))
@@ -215,7 +231,6 @@ class AudioSetModel1Test(unittest.TestCase):
                 conv_channels=[4, 8],
                 temporal_hidden=4,
                 rnn_layers=1,
-                dropout=0.0,
             )
             predictions = model(model_inputs)
             self.assertEqual(

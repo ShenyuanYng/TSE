@@ -60,7 +60,8 @@ The one-hot condition multiplies a learned embedding matrix `[C,D]` to produce
 with `audioset_embedding_dim` in `run.sh` (default 128). The embedding is expanded
 across time and concatenated with the normalized BiGRU output. A linear layer
 projects the combined features back to the audio width before the existing SiLU,
-LayerNorm, Dropout and frame head.
+LayerNorm and frame head. CNN and fusion dropout layers are removed, and GRU
+inter-layer dropout is fixed at zero.
 
 With the default settings, the shapes are:
 
@@ -71,7 +72,7 @@ logmel [B,T,64] -> CNN + frequency mean [B,T,96]
 one-hot [B,527] @ embedding matrix [527,128]             |             |
                 -> [B,128] -> expand to [B,T,128] -------+             v
                                                      Linear(384,256), SiLU,
-                                                     LayerNorm, Dropout
+                                                     LayerNorm
                                                              |
                                                      frame head -> [B,T]
 ```
@@ -266,7 +267,7 @@ still active, a continuation chain can also be attached manually once:
 ```bash
 python slurm/submit_continuation.py \
   --after-job 36595 --additional-jobs 3 --node ailab03 \
-  --run-dir experiments/audioset_strong/AudioSetCRNN_logmel_embedding_concat_d128_hop0.016_h128_rnn2_drop0.2_bs8_chunk10.0_lr0.001_job36595
+  --run-dir experiments/audioset_strong/AudioSetCRNN_logmel_embedding_concat_d128_hop0.016_h128_rnn2_bs8_chunk10.0_lr0.001_job36595
 ```
 
 `--additional-jobs` is the number of **additional** jobs, excluding the running job.

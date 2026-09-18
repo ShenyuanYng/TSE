@@ -50,7 +50,6 @@ audioset_conv_channels: [32, 64, 96]
 audioset_temporal_hidden: 128
 audioset_embedding_dim: 128
 audioset_rnn_layers: 2
-audioset_dropout: 0.2
 
 loss_type: audioset_strong
 class_positive_weight: 1.0

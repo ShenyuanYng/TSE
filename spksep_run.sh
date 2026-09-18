@@ -44,7 +44,6 @@ audioset_conv_channels='[32, 64, 96]'
 audioset_temporal_hidden=128
 audioset_embedding_dim=128
 audioset_rnn_layers=2
-audioset_dropout=0.2
 
 loss_type="audioset_strong"
 class_positive_weight=1.0
@@ -113,7 +112,7 @@ if [[ -z "${CUDA_VISIBLE_DEVICES:-}" ]]; then
 fi
 
 save_name="${dataset}/${model_name}_logmel_embedding_concat_d${audioset_embedding_dim}_hop${hoptime}"
-save_name+="_h${audioset_temporal_hidden}_rnn${audioset_rnn_layers}_drop${audioset_dropout}"
+save_name+="_h${audioset_temporal_hidden}_rnn${audioset_rnn_layers}"
 save_name+="_bs${batch_size}_chunk${train_on_chunk}_lr${learning_rate}"
 if [[ "$class_positive_weight" != "1.0" ]]; then
     save_name+="_posw${class_positive_weight}"
@@ -173,7 +172,7 @@ perl "$PWD/tools/run.pl" "$experiment_log" \
     --audioset-conv-channels "$audioset_conv_channels" \
     --audioset-temporal-hidden "$audioset_temporal_hidden" \
     --audioset-embedding-dim "$audioset_embedding_dim" \
-    --audioset-rnn-layers "$audioset_rnn_layers" --audioset-dropout "$audioset_dropout" \
+    --audioset-rnn-layers "$audioset_rnn_layers" \
     --loss-type "$loss_type" --class-positive-weight "$class_positive_weight" \
     --balance-positive-negative "$balance_positive_negative" \
     --learning-rate "$learning_rate" --decay-factor "$decay_factor" \

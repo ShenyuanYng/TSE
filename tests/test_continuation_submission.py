@@ -121,10 +121,12 @@ class LauncherChainTest(unittest.TestCase):
             self.assertIn("--starting-job", args)
             run_dir = args[args.index("--run-dir") + 1]
             self.assertTrue(run_dir.endswith("_job36595"))
+            self.assertNotIn("_drop", run_dir)
             train = (root / "train.args").read_text().splitlines()
             self.assertIn(run_dir + "/logs/training.log", train)
             self.assertIn("train.py", train)
             self.assertNotIn("--num-jobs", train)
+            self.assertNotIn("--audioset-dropout", train)
 
     def test_run_forwards_num_jobs_to_launcher(self):
         import shutil

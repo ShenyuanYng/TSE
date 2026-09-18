@@ -12,7 +12,6 @@ def _create_audioset_crnn(hparams):
         temporal_hidden=hparams.audioset_temporal_hidden,#GRU每个方向的隐藏维度
         embedding_dim=hparams.audioset_embedding_dim,#类别 embedding 的独立维度 D
         rnn_layers=hparams.audioset_rnn_layers,#GRU层数
-        dropout=hparams.audioset_dropout,#CNN,GRU和融合层使用的dropout
     )
 
 

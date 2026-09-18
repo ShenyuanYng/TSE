@@ -1,0 +1,60 @@
+{"kind":"deck","id":"pr/n0jtc3","name":"Deck"}
+{"kind":"layout","layoutId":"c7acba73-78c7-4216-8a0f-c6f0c90db765","name":"Master","type":"master"}
+{"kind":"layout","layoutId":"3684f5ab-e5fb-43a2-b4cd-389e27669481","name":"Title Slide","type":"title"}
+{"kind":"slide","id":"sl/j7wvge","slide":1,"title":"Target-class conditioned CRNN","textShapes":29}
+{"kind":"textbox","id":"sh/k761oj25","slide":1,"text":"Target-class conditioned CRNN","textPreview":"Target-class conditioned CRNN","textChars":29,"textLines":1,"bbox":[45,22,900,45]}
+{"kind":"shape","id":"sh/z6xkvel0","slide":1,"bbox":[40,170,1360,710]}
+{"kind":"shape","id":"sh/y5ojm9kf","slide":1,"bbox":[455,441,530,403]}
+{"kind":"textbox","id":"sh/x4f2t43u","slide":1,"text":"Target-class frame probabilities  [B, T]","textPreview":"Target-class frame probabilities  [B, T]","textChars":40,"textLines":1,"bbox":[480,91,480,53]}
+{"kind":"textbox","id":"sh/c3m1kz29","slide":1,"text":"Linear 256 → 1  +  Sigmoid","textPreview":"Linear 256 → 1  +  Sigmoid","textChars":26,"textLines":1,"bbox":[480,184,480,58]}
+{"kind":"textbox","id":"sh/b2dkrulo","slide":1,"text":"Condition fusion\n[B, T, 384] → [B, T, 256]","textPreview":"Condition fusion | [B, T, 384] → [B, T, 256]","textChars":42,"textLines":2,"bbox":[480,281,480,70]}
+{"kind":"textbox","id":"sh/a14jipk3","slide":1,"text":"Concatenate  [B, T, 384]","textPreview":"Concatenate  [B, T, 384]","textChars":24,"textLines":1,"bbox":[480,389,480,54]}
+{"kind":"textbox","id":"sh/h0z258jy","slide":1,"text":"LayerNorm  [B, T, 256]","textPreview":"LayerNorm  [B, T, 256]","textChars":22,"textLines":1,"bbox":[480,480,480,54]}
+{"kind":"textbox","id":"sh/wzq1w32d","slide":1,"text":"2-layer BiGRU  (128 / direction)\n[B, T, 256]","textPreview":"2-layer BiGRU  (128 / direction) | [B, T, 256]","textChars":44,"textLines":2,"bbox":[480,572,480,70]}
+{"kind":"textbox","id":"sh/a9cba5kz","slide":1,"text":"Frequency mean + Transpose\n[B, T, 96]","textPreview":"Frequency mean + Transpose | [B, T, 96]","textChars":37,"textLines":2,"bbox":[480,680,480,68]}
+{"kind":"textbox","id":"sh/bals3alk","slide":1,"text":"3 × ConvFrequencyBlock","textPreview":"3 × ConvFrequencyBlock","textChars":22,"textLines":1,"bbox":[480,777,480,54]}
+{"kind":"textbox","id":"sh/cbutcf25","slide":1,"text":"Log-Mel  [B, T, 64]","textPreview":"Log-Mel  [B, T, 64]","textChars":19,"textLines":1,"bbox":[480,910,480,56]}
+{"kind":"textbox","id":"sh/xc3a503a","slide":1,"text":"Waveform y","textPreview":"Waveform y","textChars":10,"textLines":1,"bbox":[50,916,165,44]}
+{"kind":"textbox","id":"sh/25sb6lkn","slide":1,"text":"MelSpectrogram\n+ natural log","textPreview":"MelSpectrogram | + natural log","textChars":28,"textLines":2,"bbox":[230,895,215,80]}
+{"kind":"shape","id":"sh/n61szql8","slide":1,"bbox":[0,0,0,0]}
+{"kind":"shape","id":"sh/o7at8v2t","slide":1,"bbox":[0,0,0,0]}
+{"kind":"shape","id":"sh/p83a103e","slide":1,"bbox":[0,0,0,0]}
+{"kind":"shape","id":"sh/m1wbipk7","slide":1,"bbox":[0,0,0,0]}
+{"kind":"shape","id":"sh/725cbuls","slide":1,"bbox":[0,0,0,0]}
+{"kind":"shape","id":"sh/3mx83m14","slide":1,"bbox":[0,0,0,0]}
+{"kind":"shape","id":"sh/ilo7uh0j","slide":1,"bbox":[0,0,0,0]}
+{"kind":"shape","id":"sh/5ofq5cja","slide":1,"bbox":[0,0,0,0]}
+{"kind":"shape","id":"sh/4n6pwrip","slide":1,"bbox":[0,0,0,0]}
+{"kind":"shape","id":"sh/rah87m10","slide":1,"bbox":[0,0,0,0]}
+{"kind":"textbox","id":"sh/q987yh0f","slide":1,"text":"ConvFrequencyBlock","textPreview":"ConvFrequencyBlock","textChars":18,"textLines":1,"bbox":[64,407,310,36]}
+{"kind":"textbox","id":"sh/dczq9wj6","slide":1,"text":"Conv2D 3 × 3","textPreview":"Conv2D 3 × 3","textChars":12,"textLines":1,"bbox":[75,747,285,48]}
+{"kind":"textbox","id":"sh/sbqp0ril","slide":1,"text":"GroupNorm (8 groups)","textPreview":"GroupNorm (8 groups)","textChars":20,"textLines":1,"bbox":[75,675,285,48]}
+{"kind":"textbox","id":"sh/feh8b61c","slide":1,"text":"SiLU","textPreview":"SiLU","textChars":4,"textLines":1,"bbox":[75,603,285,48]}
+{"kind":"textbox","id":"sh/ed87210r","slide":1,"text":"AvgPool2D (1 × 2)","textPreview":"AvgPool2D (1 × 2)","textChars":17,"textLines":1,"bbox":[75,531,285,48]}
+{"kind":"textbox","id":"sh/cjapsbyp","slide":1,"text":"Dropout2D (0.2)","textPreview":"Dropout2D (0.2)","textChars":15,"textLines":1,"bbox":[75,459,285,48]}
+{"kind":"shape","id":"sh/xkj61gfa","slide":1,"bbox":[0,0,0,0]}
+{"kind":"shape","id":"sh/ahs7q1gz","slide":1,"bbox":[0,0,0,0]}
+{"kind":"shape","id":"sh/bi1oz6x4","slide":1,"bbox":[0,0,0,0]}
+{"kind":"shape","id":"sh/ofqporyt","slide":1,"bbox":[0,0,0,0]}
+{"kind":"shape","id":"sh/pgj6xwfe","slide":1,"bbox":[247.97,614,344.06,0]}
+{"kind":"shape","id":"sh/2d87m1gn","slide":1,"bbox":[363.25,817,113.51,0]}
+{"kind":"textbox","id":"sh/nehovmx8","slide":1,"text":"Channels: 1 → 32 → 64 → 96\nMel bins: 64 → 32 → 16 → 8\nTime resolution T is preserved","textPreview":"Channels: 1 → 32 → 64 → 96 | Mel bins: 64 → 32 → 16 → 8 | Time resolution T is preserved","textChars":84,"textLines":3,"bbox":[58,205,330,132]}
+{"kind":"textbox","id":"sh/0bqpkryh","slide":1,"text":"Target-class one-hot\n[B, 527]","textPreview":"Target-class one-hot | [B, 527]","textChars":29,"textLines":2,"bbox":[1060,749,300,68]}
+{"kind":"textbox","id":"sh/1cz6twz2","slide":1,"text":"Learned embedding\n[527, 128]","textPreview":"Learned embedding | [527, 128]","textChars":28,"textLines":2,"bbox":[1060,633,300,68]}
+{"kind":"textbox","id":"sh/5wvm1svu","slide":1,"text":"Expand across time\n[B, T, 128]","textPreview":"Expand across time | [B, T, 128]","textChars":30,"textLines":2,"bbox":[1060,517,300,68]}
+{"kind":"shape","id":"sh/4vmlsne9","slide":1,"bbox":[0,0,0,0]}
+{"kind":"shape","id":"sh/3ud4zix4","slide":1,"bbox":[0,0,0,0]}
+{"kind":"shape","id":"sh/it43qdwj","slide":1,"bbox":[0,0,0,0]}
+{"kind":"textbox","id":"sh/dkfm5sv6","slide":1,"text":"Class conditioning","textPreview":"Class conditioning","textChars":18,"textLines":1,"bbox":[1040,831,340,34]}
+{"kind":"textbox","id":"sh/sj6lwnel","slide":1,"text":"Fusion detail","textPreview":"Fusion detail","textChars":13,"textLines":1,"bbox":[1045,170,330,32]}
+{"kind":"textbox","id":"sh/rix43id0","slide":1,"text":"Linear (384 → 256)","textPreview":"Linear (384 → 256)","textChars":18,"textLines":1,"bbox":[1060,370,300,44]}
+{"kind":"textbox","id":"sh/qho3uxwf","slide":1,"text":"SiLU","textPreview":"SiLU","textChars":4,"textLines":1,"bbox":[1060,315,300,38]}
+{"kind":"textbox","id":"sh/tobmt8fm","slide":1,"text":"LayerNorm","textPreview":"LayerNorm","textChars":9,"textLines":1,"bbox":[1060,260,300,38]}
+{"kind":"textbox","id":"sh/8n2lk3eh","slide":1,"text":"Dropout (0.2)","textPreview":"Dropout (0.2)","textChars":13,"textLines":1,"bbox":[1060,205,300,38]}
+{"kind":"shape","id":"sh/yt0ju9cz","slide":1,"bbox":[0,0,0,0]}
+{"kind":"shape","id":"sh/zu90nedk","slide":1,"bbox":[0,0,0,0]}
+{"kind":"shape","id":"sh/kvi1wzu5","slide":1,"bbox":[0,0,0,0]}
+{"kind":"shape","id":"sh/lwrip4vq","slide":1,"bbox":[950.49,243,114.02,0]}
+{"kind":"shape","id":"sh/mx0jy9cb","slide":1,"bbox":[954.6,382.5,105.8,0]}
+{"kind":"textbox","id":"sh/7ytkretw","slide":1,"text":"16 kHz   /   64 Mel bins   /   32 ms window   /   16 ms hop","textPreview":"16 kHz   /   64 Mel bins   /   32 ms window   /   16 ms hop","textChars":59,"textLines":1,"bbox":[46,975,1050,24]}
+{"kind":"notes","id":"nt/j7wvge","slide":1,"text":"Architecture verified against nets/audioset_crnn.py and current run.sh configuration. Front end: datasets/audioset_logmel_dataset.py and README.md. Default channels [32,64,96], 2-layer bidirectional GRU with hidden size 128 per direction, embedding dimension 128, dropout 0.2. CNN tensors [B,1,T,64] -> [B,32,T,32] -> [B,64,T,16] -> [B,96,T,8]. Frequency mean yields [B,96,T], then transpose [B,T,96]. Packed sequences use valid lengths. Frame logits have shape [B,T]; sigmoid yields conditional probabilities. frame_mask excludes batch padding. Training uses real strong annotations and masked balanced BCE, omitted from this forward architecture diagram. Class conditions are single-class one-hot vectors, not multi-hot vectors. B=batch size, T=number of frames. Reference image used for black/white/gray layout and module expansion style only."}

@@ -67,7 +67,6 @@ audioset_conv_channels='[32, 64, 96]'
 audioset_temporal_hidden=128
 audioset_embedding_dim=128  # D: independent of the BiGRU output width.
 audioset_rnn_layers=2
-audioset_dropout=0.2
 
 # ---------------------------------------------------------------------------
 # Loss and optimization
@@ -196,7 +195,7 @@ launch_args=( \
     --audioset-conv-channels "$audioset_conv_channels" \
     --audioset-temporal-hidden "$audioset_temporal_hidden" \
     --audioset-embedding-dim "$audioset_embedding_dim" \
-    --audioset-rnn-layers "$audioset_rnn_layers" --audioset-dropout "$audioset_dropout" \
+    --audioset-rnn-layers "$audioset_rnn_layers" \
     --loss-type "$loss_type" --class-positive-weight "$class_positive_weight" \
     --balance-positive-negative "$balance_positive_negative" \
     --learning-rate "$learning_rate" --decay-factor "$decay_factor" \

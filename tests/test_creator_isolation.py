@@ -28,7 +28,6 @@ class CreatorIsolationTest(unittest.TestCase):
             audioset_temporal_hidden=4,
             audioset_embedding_dim=3,
             audioset_rnn_layers=1,
-            audioset_dropout=0.0,
         )
         with patch.dict(sys.modules, {"nets.audioset_crnn": module}):
             model = model_creator(hparams)
