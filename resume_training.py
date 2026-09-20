@@ -8,11 +8,13 @@ from pathlib import Path
 import torch
 
 from train import main as train_main
+from datasets.train_split import validate_split_config
 
 
 def resume_settings(checkpoint, run_dir):
     """Keep the saved configuration, including the original data split and LR."""
     hp = argparse.Namespace(**dict(checkpoint["hyper_parameters"]))
+    validate_split_config(hp)
     run_dir = Path(run_dir).resolve()
     hp.save_path = str(run_dir.parent)
     hp.save_name = run_dir.name

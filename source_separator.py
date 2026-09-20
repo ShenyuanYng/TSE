@@ -1,6 +1,7 @@
 """Creator-driven Lightning training module for AudioSet Strong."""
 
 import random
+from argparse import Namespace
 
 import numpy as np
 import pytorch_lightning as pl
@@ -12,7 +13,7 @@ from torch import optim
 
 from creators.collate import collate_creator
 from creators.dataset import dataset_creator, datapath_creator
-from datasets.eval_split import video_id
+from datasets.train_split import video_id, validate_split_config
 # from utils.audioset_metrics import ConditionalFrameMAP  # mAP 暂停使用
 from utils.audioset_metrics import ConditionalFrameAccuracy
 from creators.loss import loss_creator
@@ -54,6 +55,18 @@ class SourceSeparator(pl.LightningModule):
         self.val_accuracy = ConditionalFrameAccuracy(hparams.frame_accuracy_threshold)
         self.test_accuracy = ConditionalFrameAccuracy(hparams.frame_accuracy_threshold)
         self.split_paths = None
+
+    def on_load_checkpoint(self, checkpoint):
+        # train.py can also auto-resume a checkpoint in an existing run directory.
+        saved = Namespace(**dict(checkpoint["hyper_parameters"]))
+        validate_split_config(saved)
+        for name in ("data_path", "train_audio_dir", "train_weak_manifest",
+                     "train_strong_manifest", "train_val_fraction",
+                     "train_split_seed", "train_split_path", "test_audio_dir",
+                     "test_weak_manifest", "test_strong_manifest", "audioset_strict_paths"):
+            if getattr(saved, name) != getattr(self.hparams, name):
+                raise ValueError(f"Checkpoint data split setting changed: {name}; "
+                                 "start a new experiment from scratch")
 
     #进入真正模型
     def forward(self, model_input, target_dict=None):
@@ -268,11 +281,13 @@ class SourceSeparator(pl.LightningModule):
         if self.split_paths is None:
             self.split_paths = {part: datapath_creator(self.hparams, part)
                                 for part in ("tr", "cv", "test")}
-            train_videos = {video_id(e) for e in self.split_paths["tr"]}
-            eval_videos = {video_id(e) for part in ("cv", "test") for e in self.split_paths[part]}
-            #防止同一个youtube时频出现在训练集和验证/测试集中，防止数据泄露
-            if train_videos & eval_videos:
-                raise ValueError("Training and evaluation share YouTube video IDs")
+            videos = {part: {video_id(e) for e in entries}
+                      for part, entries in self.split_paths.items()}
+            for left, right in (("tr", "cv"), ("tr", "test"), ("cv", "test")):
+                if videos[left] & videos[right]:
+                    raise ValueError(f"{left} and {right} share YouTube video IDs")
+            logger.info("Video split sizes (Strong Train -> tr/cv; Strong Eval -> test): {}",
+                        {k: len(v) for k, v in videos.items()})
             logger.info("Clip split sizes: {}", {k: len(v) for k, v in self.split_paths.items()})
 
     def on_validation_epoch_start(self):

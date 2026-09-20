@@ -53,7 +53,7 @@ exec ./run.sh \
     --devices 1 \
     --data-path "$data_root" \
     --train-audio-dir "[\"$raw_root/balance_wav\", \"$raw_root/unbalanced_wav\"]" \
-    --val-audio-dir "[\"$raw_root/eval_wav\"]" \
+    --test-audio-dir "[\"$raw_root/eval_wav\"]" \
     --train-weak-manifest '["metadata/balanced_train_segments.csv", "metadata/unbalanced_train_segments.csv"]' \
     --audioset-strict-paths false \
     --learning-rate 0.0005 \

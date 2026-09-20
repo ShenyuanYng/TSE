@@ -3,6 +3,7 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 import numpy as np
 import soundfile as sf
 import torch
@@ -14,6 +15,31 @@ from utils.config import yaml_to_parser
 
 
 class TrainingIntegrationTest(unittest.TestCase):
+    def test_checkpoint_cannot_change_holdout_or_resume_legacy_split(self):
+        hp = yaml_to_parser("exp_defs/audioset_params.yaml").parse_args([])
+        model = SourceSeparator(hp)
+        checkpoint = {"hyper_parameters": vars(hp).copy()}
+        model.on_load_checkpoint(checkpoint)
+        checkpoint["hyper_parameters"]["train_split_seed"] = 8
+        with self.assertRaisesRegex(ValueError, "split setting changed: train_split_seed"):
+            model.on_load_checkpoint(checkpoint)
+        del checkpoint["hyper_parameters"]["train_split_path"]
+        with self.assertRaisesRegex(ValueError, "Start a new experiment from scratch"):
+            model.on_load_checkpoint(checkpoint)
+
+    def test_all_partition_video_overlaps_are_rejected(self):
+        hp = yaml_to_parser("exp_defs/audioset_params.yaml").parse_args([])
+        for left, right in (("tr", "cv"), ("tr", "test"), ("cv", "test")):
+            with self.subTest(left=left, right=right):
+                model = SourceSeparator(hp)
+                entries = {part: [{"id": f"{part}_0", "ytid": part}]
+                           for part in ("tr", "cv", "test")}
+                entries[right][0]["ytid"] = left
+                with patch("source_separator.datapath_creator",
+                           side_effect=lambda hp, part: entries[part]):
+                    with self.assertRaisesRegex(ValueError, "share YouTube video IDs"):
+                        model.setup()
+
     def test_fit_then_test_best_checkpoint(self):
         torch.set_num_threads(1)
         with tempfile.TemporaryDirectory() as directory:
@@ -36,8 +62,8 @@ class TrainingIntegrationTest(unittest.TestCase):
             hp = yaml_to_parser("exp_defs/audioset_params.yaml").parse_args([])
             hp.data_path = str(root)
             hp.class_map_path = "classes.csv"
-            hp.train_weak_manifest, hp.val_weak_manifest = ["train.csv"], ["eval.csv"]
-            hp.train_strong_manifest, hp.val_strong_manifest = "train.tsv", "eval.tsv"
+            hp.train_weak_manifest, hp.test_weak_manifest = ["train.csv"], ["eval.csv"]
+            hp.train_strong_manifest, hp.test_strong_manifest = "train.tsv", "eval.tsv"
             hp.num_classes, hp.num_workers, hp.batch_size = 2, 0, 2
             hp.audioset_conv_channels = [4]
             hp.audioset_temporal_hidden, hp.audioset_rnn_layers = 4, 1
@@ -52,7 +78,13 @@ class TrainingIntegrationTest(unittest.TestCase):
                               enable_model_summary=False, num_sanity_val_steps=1)
             trainer.fit(model)
             self.assertTrue(checkpoint.best_model_path)
-            self.assertTrue((root / "metadata/eval_split.json").exists())
+            self.assertTrue((root / "metadata/train_val_split.json").exists())
+            self.assertEqual(len(model.split_paths["tr"]), 1)
+            self.assertEqual(len(model.split_paths["cv"]), 1)
+            self.assertEqual(len(model.split_paths["test"]), 6)
+            self.assertTrue(all(e["ytid"].startswith("train") for e in model.split_paths["cv"]))
+            self.assertEqual(len(model.val_dataloader().dataset), 2)
+            self.assertEqual(len(model.test_dataloader().dataset), 12)
             self.assertFalse((root / "results/version_first/test_frame_accuracy.json").exists())
             trainer.test(model, ckpt_path="best")
             metrics = json.loads((root / "results/version_first/test_frame_accuracy.json").read_text())

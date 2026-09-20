@@ -86,14 +86,32 @@ scalar and `strong_bce` is its detached logging copy, so their values agree.
 
 ## Validation and held-out test
 
-The official eval manifests and audio directories supply both validation and
-test. Before training or condition expansion, eval is split by YouTube video ID
-with deterministic multilabel balancing (target test fraction 0.5, seed 7).
-Exact balance is not guaranteed for rare labels or large video groups. The
-partition is persisted in `metadata/eval_split.json` under the data root.
-Changing the inventory, fraction or seed requires a new split path. Train/eval
-video overlap is rejected. Machine-specific defaults now use `eval_wav` and
-official eval manifests; adjust these paths to match local storage.
+Official Strong Train supplies training and validation. Before condition
+expansion, all usable clips are grouped by YouTube video ID. Video IDs are
+ordered by a SHA-256 hash of seed and ID; 15% (rounded to the nearest integer,
+with at least one video in each partition) are held out for validation and the
+remaining 85% are used for training. All clips and class conditions from one
+video stay together. These percentages refer to independent videos; clip and
+class counts may differ from 85/15. No label stratification is applied.
+
+The defaults are `train_val_fraction=0.15`, `train_split_seed=7` and
+`train_split_path=metadata/train_val_split.json`, relative to the data root.
+The fixed clip lists are persisted and reused; changing the inventory, fraction
+or seed requires a new split path. The old `metadata/eval_split.json` is not used.
+Video overlap between any two partitions is rejected, and startup logs report
+both video and clip counts.
+
+Official Strong Eval is kept entirely as test, without further splitting.
+Configure its sources with `test_audio_dir`, `test_weak_manifest` and
+`test_strong_manifest` (CLI: `--test-audio-dir`, etc.); these replace the old
+`val_*` source settings. Validation always uses the `train_*` sources.
+Machine profiles use `eval_wav` for test. As before, usable clips must have
+matching strong labels, weak labels and audio; `audioset_strict_paths=false`
+skips missing matches, so retaining all eval means all available usable eval clips.
+
+Start a new experiment from scratch for this split. Old checkpoints trained on
+the full Strong Train have already seen the new validation videos; resuming
+their legacy configuration is rejected rather than silently changing holdouts.
 
 Validation controls checkpoint selection and learning-rate scheduling through
 `val_loss`. Test data is never used by fitting or checkpoint selection.

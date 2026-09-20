@@ -6,7 +6,7 @@
 
 #根据数据区分
 def _partition_config(hparams, partition, name):
-    prefix = {"tr": "train", "cv": "val", "test": "val"}[partition]
+    prefix = {"tr": "train", "cv": "train", "test": "test"}[partition]
     return getattr(hparams, f"{prefix}_{name}")
 
 #把以“秒”为单位的 STFT 参数换算成以“采样点”为单位的参数
@@ -26,6 +26,11 @@ def datapath_creator(hparams, partition):
     """Join strong annotations, weak labels, and available audio files."""
     if hparams.dataset != "audioset_strong":
         raise ValueError(f"Unsupported dataset: {hparams.dataset}")
+    if partition not in {"tr", "cv", "test"}:
+        raise ValueError(f"Unsupported partition: {partition}")
+
+    from datasets.train_split import split_train, validate_split_config
+    validate_split_config(hparams)
 
     from datasets.paths.audioset_paths import get_audioset_paths
 
@@ -37,11 +42,10 @@ def datapath_creator(hparams, partition):
         strict=hparams.audioset_strict_paths,
     )
 
-    if partition == "tr":
+    if partition == "test":
         return entries
-    from datasets.eval_split import split_eval
-    return split_eval(entries, hparams.data_path, hparams.eval_split_path,
-                      hparams.eval_test_fraction, hparams.eval_split_seed)[partition]
+    return split_train(entries, hparams.data_path, hparams.train_split_path,
+                       hparams.train_val_fraction, hparams.train_split_seed)[partition]
 
 
 #根据配置创建一个完整的AudioSetLogMelDataset 对象

@@ -15,17 +15,17 @@ collate_type="sequence"
 data_path="./data/audioset"
 class_map_path="metadata/class_labels_indices.csv"
 train_audio_dir='["audio/train"]'
-val_audio_dir='["audio/eval"]'
+test_audio_dir='["audio/eval"]'
 train_weak_manifest='["metadata/unbalanced_train_segments.csv"]'
-val_weak_manifest='["metadata/eval_segments.csv"]'
+test_weak_manifest='["metadata/eval_segments.csv"]'
 train_strong_manifest="metadata/audioset_train_strong.tsv"
-val_strong_manifest="metadata/audioset_eval_strong.tsv"
+test_strong_manifest="metadata/audioset_eval_strong.tsv"
 audioset_strict_paths=true
 strong_annotation_complete=true
 n_mels=64
-eval_test_fraction=0.5
-eval_split_seed=7
-eval_split_path="metadata/eval_split.json"
+train_val_fraction=0.15
+train_split_seed=7
+train_split_path="metadata/train_val_split.json"
 test_after_fit=false
 frame_accuracy_threshold=0.5
 
@@ -155,13 +155,13 @@ perl "$PWD/tools/run.pl" "$experiment_log" \
     --dataset "$dataset" --task-type "$task_type" \
     --feature-type "$feature_type" --collate-type "$collate_type" \
     --data-path "$data_path" --class-map-path "$class_map_path" \
-    --train-audio-dir "$train_audio_dir" --val-audio-dir "$val_audio_dir" \
-    --train-weak-manifest "$train_weak_manifest" --val-weak-manifest "$val_weak_manifest" \
-    --train-strong-manifest "$train_strong_manifest" --val-strong-manifest "$val_strong_manifest" \
+    --train-audio-dir "$train_audio_dir" --test-audio-dir "$test_audio_dir" \
+    --train-weak-manifest "$train_weak_manifest" --test-weak-manifest "$test_weak_manifest" \
+    --train-strong-manifest "$train_strong_manifest" --test-strong-manifest "$test_strong_manifest" \
     --audioset-strict-paths "$audioset_strict_paths" \
     --strong-annotation-complete "$strong_annotation_complete" \
-    --n-mels "$n_mels" --eval-test-fraction "$eval_test_fraction" \
-    --eval-split-seed "$eval_split_seed" --eval-split-path "$eval_split_path" \
+    --n-mels "$n_mels" --train-val-fraction "$train_val_fraction" \
+    --train-split-seed "$train_split_seed" --train-split-path "$train_split_path" \
     --test-after-fit "$test_after_fit" \
     --frame-accuracy-threshold "$frame_accuracy_threshold" \
     --samplerate "$samplerate" --inwintime "$inwintime" \

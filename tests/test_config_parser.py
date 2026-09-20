@@ -4,6 +4,15 @@ from utils.config import yaml_to_parser
 
 
 class ConfigParserTest(unittest.TestCase):
+    def test_train_holdout_and_full_eval_test_defaults(self):
+        hp = yaml_to_parser("exp_defs/audioset_params.yaml").parse_args([])
+        self.assertEqual(hp.train_val_fraction, .15)
+        self.assertEqual(hp.train_split_seed, 7)
+        self.assertEqual(hp.train_split_path, "metadata/train_val_split.json")
+        self.assertEqual(hp.test_audio_dir, ["audio/eval"])
+        self.assertEqual(hp.test_strong_manifest, "metadata/audioset_eval_strong.tsv")
+        self.assertFalse(hp.test_after_fit)
+
     def test_default_stft_has_half_overlap(self):
         hp = yaml_to_parser("exp_defs/audioset_params.yaml").parse_args([])
         from creators.dataset import _stft_config

@@ -1,9 +1,7 @@
-import tempfile
 import unittest
 from unittest.mock import patch
 import numpy as np
 import torch
-from datasets.eval_split import split_eval, video_id
 from utils.audioset_metrics import ConditionalFrameAccuracy
 from loss_functions.audioset_loss import audioset_strong_loss
 
@@ -77,21 +75,6 @@ class MetricsAndSplitTest(unittest.TestCase):
         self.assertAlmostEqual(loss.item(), np.log(2), places=6)
         loss.backward()
         self.assertEqual(logits.grad[0, 1:].abs().sum().item(), 0)
-
-    def test_split_is_persisted_grouped_and_inventory_checked(self):
-        entries = [{"id": f"video{i}_{j}", "ytid": f"video{i}",
-                    "weak_mids": ["A", "B"] if i % 2 else ["A"]}
-                   for i in range(12) for j in (0, 10000)]
-        with tempfile.TemporaryDirectory() as root:
-            first = split_eval(entries, root, "split.json")
-            second = split_eval(list(reversed(entries)), root, "split.json")
-            self.assertEqual({e["id"] for e in first["test"]},
-                             {e["id"] for e in second["test"]})
-            self.assertFalse({video_id(e) for e in first["cv"]} &
-                             {video_id(e) for e in first["test"]})
-            self.assertEqual(sum(map(len, first.values())), len(entries))
-            with self.assertRaisesRegex(ValueError, "inventory changed"):
-                split_eval(entries[:-1], root, "split.json")
 
 
 if __name__ == "__main__":

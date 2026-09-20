@@ -14,7 +14,7 @@ cd "$project_root"
 submit=false
 slurm_node="ailab01"
 slurm_partition=""  # Empty: select L40 / RTXPRO5000 from slurm_node.
-slurm_gres=""       # Empty: select the matching single GPU.
+slurm_gres="gpu:1"  # Let Slurm choose any GPU model on the selected node.
 slurm_cpus_per_task=6
 slurm_mem="32G"
 slurm_time="2-00:00:00"
@@ -35,17 +35,17 @@ collate_type="sequence"
 data_path=""
 class_map_path="metadata/class_labels_indices.csv"
 train_audio_dir=""
-val_audio_dir=""
+test_audio_dir=""
 train_weak_manifest=""
-val_weak_manifest='["metadata/eval_segments.csv"]'
+test_weak_manifest='["metadata/eval_segments.csv"]'
 train_strong_manifest="metadata/audioset_train_strong.tsv"
-val_strong_manifest="metadata/audioset_eval_strong.tsv"
+test_strong_manifest="metadata/audioset_eval_strong.tsv"
 audioset_strict_paths=""
 strong_annotation_complete=true
 n_mels=64
-eval_test_fraction=0.5
-eval_split_seed=7
-eval_split_path="metadata/eval_split.json"
+train_val_fraction=0.15
+train_split_seed=7
+train_split_path="metadata/train_val_split.json"
 test_after_fit=false
 frame_accuracy_threshold=0.5
 
@@ -74,18 +74,18 @@ audioset_rnn_layers=2
 loss_type="audioset_strong"
 class_positive_weight=1.0
 balance_positive_negative=true
-learning_rate=0.001
+learning_rate=0.0001
 decay_factor=0.5
-patience=5
+patience=3
 gradient_clip_val=5.0
 
 # ---------------------------------------------------------------------------
 # Training and runtime
 # ---------------------------------------------------------------------------
-batch_size=8
+batch_size=256
 epochs=50
 # Total Slurm jobs, including the first. Set 3 for up to three two-day jobs.
-num_jobs=1
+num_jobs=3
 seed=7
 shuffle=true
 num_workers=4
@@ -118,8 +118,8 @@ case "$data_profile" in
         if [[ -z "$train_audio_dir" ]]; then
             train_audio_dir='["/hdd2/cse30029918/corpora/AudioSetRaw/balance_wav", "/hdd2/cse30029918/corpora/AudioSetRaw/unbalanced_wav"]'
         fi
-        if [[ -z "$val_audio_dir" ]]; then
-            val_audio_dir='["/hdd2/cse30029918/corpora/AudioSetRaw/eval_wav"]'
+        if [[ -z "$test_audio_dir" ]]; then
+            test_audio_dir='["/hdd2/cse30029918/corpora/AudioSetRaw/eval_wav"]'
         fi
         ;;
     ailab03*)
@@ -127,8 +127,8 @@ case "$data_profile" in
         if [[ -z "$train_audio_dir" ]]; then
             train_audio_dir='["audio/balance_wav", "audio/unbalanced_wav"]'
         fi
-        if [[ -z "$val_audio_dir" ]]; then
-            val_audio_dir='["audio/eval_wav"]'
+        if [[ -z "$test_audio_dir" ]]; then
+            test_audio_dir='["audio/eval_wav"]'
         fi
         ;;
 esac
@@ -145,8 +145,8 @@ data_path="${data_path:-./data/audioset}"
 if [[ -z "$train_audio_dir" ]]; then
     train_audio_dir='["audio/train"]'
 fi
-if [[ -z "$val_audio_dir" ]]; then
-    val_audio_dir='["audio/eval"]'
+if [[ -z "$test_audio_dir" ]]; then
+    test_audio_dir='["audio/eval"]'
 fi
 if [[ -z "$train_weak_manifest" ]]; then
     train_weak_manifest='["metadata/unbalanced_train_segments.csv"]'
@@ -162,11 +162,11 @@ fi
 case "$resource_node" in
     ailab01)
         slurm_partition="${slurm_partition:-L40}"
-        slurm_gres="${slurm_gres:-gpu:l40:1}"
+        slurm_gres="${slurm_gres:-gpu:1}"
         ;;
     ailab03)
         slurm_partition="${slurm_partition:-RTXPRO5000}"
-        slurm_gres="${slurm_gres:-gpu:rtxpro5000:1}"
+        slurm_gres="${slurm_gres:-gpu:1}"
         ;;
 esac
 if [[ ! "$num_jobs" =~ ^[1-9][0-9]*$ ]]; then
@@ -178,13 +178,13 @@ launch_args=( \
     --dataset "$dataset" --task-type "$task_type" \
     --feature-type "$feature_type" --collate-type "$collate_type" \
     --data-path "$data_path" --class-map-path "$class_map_path" \
-    --train-audio-dir "$train_audio_dir" --val-audio-dir "$val_audio_dir" \
-    --train-weak-manifest "$train_weak_manifest" --val-weak-manifest "$val_weak_manifest" \
-    --train-strong-manifest "$train_strong_manifest" --val-strong-manifest "$val_strong_manifest" \
+    --train-audio-dir "$train_audio_dir" --test-audio-dir "$test_audio_dir" \
+    --train-weak-manifest "$train_weak_manifest" --test-weak-manifest "$test_weak_manifest" \
+    --train-strong-manifest "$train_strong_manifest" --test-strong-manifest "$test_strong_manifest" \
     --audioset-strict-paths "$audioset_strict_paths" \
     --strong-annotation-complete "$strong_annotation_complete" \
-    --n-mels "$n_mels" --eval-test-fraction "$eval_test_fraction" \
-    --eval-split-seed "$eval_split_seed" --eval-split-path "$eval_split_path" \
+    --n-mels "$n_mels" --train-val-fraction "$train_val_fraction" \
+    --train-split-seed "$train_split_seed" --train-split-path "$train_split_path" \
     --test-after-fit "$test_after_fit" \
     --frame-accuracy-threshold "$frame_accuracy_threshold" \
     --samplerate "$samplerate" --inwintime "$inwintime" \
