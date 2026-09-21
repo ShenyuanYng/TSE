@@ -72,14 +72,16 @@ def _select_sample(dataset, sample_index, clip_id, class_mid):
     raise ValueError(f"No dataset sample matches {filters}")
 
 
-def _intervals(active: np.ndarray, times: np.ndarray, hop_seconds: float):
+def _intervals(active: np.ndarray, times: np.ndarray, hop_seconds: float, end_time=None):
     indices = np.flatnonzero(active)
     if not len(indices):
         return []
     breaks = np.flatnonzero(np.diff(indices) > 1)
     starts = np.r_[0, breaks + 1]
     ends = np.r_[breaks, len(indices) - 1]
-    return [(float(times[indices[start]]), float(times[indices[end]] + hop_seconds))
+    return [(float(times[indices[start]]),
+             min(float(times[indices[end]] + hop_seconds),
+                 float(end_time) if end_time is not None else float("inf")))
             for start, end in zip(starts, ends)]
 
 
@@ -99,13 +101,17 @@ def _format_intervals(intervals, limit=30):
     return text or "无"
 
 
-def _svg(times, probabilities, valid, truth_intervals, predicted_intervals, threshold):
+def _svg(times, probabilities, valid, truth_intervals, predicted_intervals, threshold,
+         end_time=None):
     width, height = 1100, 420
     left, right, top, bottom = 85, 30, 35, 115
     plot_width, plot_height = width - left - right, height - top - bottom
     valid_times = times[valid]
-    start = float(valid_times[0])
-    end = float(valid_times[-1]) if valid_times[-1] > start else start + 1.0
+    start = 0.0 if end_time is not None else float(valid_times[0])
+    end = float(end_time) if end_time is not None else max(
+        float(valid_times[-1]), *(offset for _, offset in truth_intervals + predicted_intervals))
+    if end <= start:
+        end = start + 1.0
 
     def x(value):
         return left + (value - start) / (end - start) * plot_width
@@ -167,7 +173,8 @@ def _svg(times, probabilities, valid, truth_intervals, predicted_intervals, thre
 
 
 def _write_report(output_path, metadata, metrics, times, labels, probabilities, valid,
-                  truth_intervals, predicted_intervals, threshold):
+                  truth_intervals, predicted_intervals, threshold, audio_url=None,
+                  end_time=None):
     output_path.parent.mkdir(parents=True, exist_ok=True)
     csv_path = output_path.with_suffix(".csv")
     with csv_path.open("w", newline="", encoding="utf-8") as handle:
@@ -183,7 +190,10 @@ def _write_report(output_path, metadata, metrics, times, labels, probabilities, 
         f"<tr><th>{html.escape(name)}</th><td>{_format_number(value)}</td></tr>"
         for name, value in metrics.items()
     )
-    graphic = _svg(times, probabilities, valid, truth_intervals, predicted_intervals, threshold)
+    graphic = _svg(times, probabilities, valid, truth_intervals, predicted_intervals, threshold,
+                   end_time=end_time)
+    audio_player = (f'<audio controls preload="none" src="{html.escape(audio_url, quote=True)}"></audio>'
+                    if audio_url else "")
     document = f"""<!doctype html>
 <html lang="zh-CN"><head><meta charset="utf-8"><title>AudioSet 单样本预测对比</title>
 <style>
@@ -194,10 +204,13 @@ th,td{{border:1px solid #d9dee5;padding:8px 12px;text-align:left}} th{{backgroun
 </style></head><body>
 <h1>AudioSet 单样本预测与真实强标签</h1>
 <table>{rows}</table>
+{audio_player}
 <h2>时间对比</h2><div class="plot">{graphic}</div>
 <p>蓝线：模型逐帧概率；绿色背景与“真实”条：强标签；“预测”条：概率 ≥ {threshold:.2f}。</p>
 <h2>单样本指标</h2><table>{metric_rows}</table>
-<p>Accuracy 容易受大量负帧影响；判断定位质量时优先看 AP、Precision、Recall、F1 和时间曲线。</p>
+<p>区间为有效监督帧的时间区间；预测区间使用当前阈值，未做平滑或短事件过滤。
+Accuracy 容易受大量负帧影响，需结合目标正帧的 Precision、Recall、F1 和时间曲线判断。
+同 MID 匹配不代表已经人工核实音频或标注正确。</p>
 <h2>时间区间</h2>
 <p><strong>真实：</strong>{html.escape(_format_intervals(truth_intervals))}</p>
 <p><strong>预测：</strong>{html.escape(_format_intervals(predicted_intervals))}</p>
