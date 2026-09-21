@@ -72,7 +72,7 @@ def _write_index(output, summary, rows):
     body = []
     for row in rows:
         body.append("<tr>" + "".join(f"<td>{cell(row[key])}</td>" for key in
-                    ("partition", "clip_id", "class_name", "Precision", "Recall", "F1", "Frame IoU"))
+                    ("partition", "clip_id", "class_name", "Accuracy", "Precision", "Recall", "F1", "Frame IoU"))
                     + f'<td><a href="{row["report"]}">打开对比</a></td></tr>')
     partition_text = "".join(
         f'<li>{part}：全部 target {stats["total_targets"]:,}；同 MID 匹配 '
@@ -95,7 +95,7 @@ th{{background:#f5f7fa}}code{{overflow-wrap:anywhere}}li{{margin:8px 0}}</style>
 人工原始标注见 <a href="ground_truth.tsv">ground_truth.tsv</a>；
 预测区间见 <a href="pseudo_strong.tsv">pseudo_strong.tsv</a>；
 统计和跳过原因见 <a href="summary.json">summary.json</a>。</p>
-<table><thead><tr><th>集合</th><th>音频 ID</th><th>目标类别</th><th>Precision</th>
+<table><thead><tr><th>集合</th><th>音频 ID</th><th>目标类别</th><th>Accuracy</th><th>Precision</th>
 <th>Recall</th><th>F1</th><th>帧 IoU</th><th>报告</th></tr></thead>
 <tbody>{''.join(body)}</tbody></table></html>''', encoding="utf-8")
 
@@ -154,7 +154,7 @@ def run(checkpoint, output, partitions=("tr", "cv"), num_samples=20, seed=7,
             metrics, counts = frame_metrics(labels, probabilities, valid, threshold)
             true_intervals = _intervals((labels >= .5) & valid, times, hp.hoptime, duration)
             pred_intervals = _intervals((probabilities >= threshold) & valid, times, hp.hoptime, duration)
-            name = f"{part}_{rank:03d}"
+            name = f"{part}_{rank:03d}_{metrics['Accuracy']:.2f}"
             class_name = dataset.class_names[int(target["class_index"])]
             metadata = dict(checkpoint=str(checkpoint), partition=part, sample_index=index,
                             clip_id=entry["id"], audio=target["audio_path"], class_mid=mid,
