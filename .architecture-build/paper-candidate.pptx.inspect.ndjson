@@ -1,0 +1,47 @@
+{"kind":"deck","id":"pr/c47gkp","name":"Deck"}
+{"kind":"layout","layoutId":"d798b354-7354-4ac6-ad71-e1b52671b0f8","name":"Master","type":"master"}
+{"kind":"layout","layoutId":"46ab011c-aaeb-4ce5-a038-5ad98b176a52","name":"Title Slide","type":"title"}
+{"kind":"slide","id":"sl/q6dc0h","slide":1,"title":"Teacher–student framework with loss masking","textShapes":24}
+{"kind":"textbox","id":"sh/0v6psrit","slide":1,"text":"Teacher–student framework with loss masking","textPreview":"Teacher–student framework with loss masking","textChars":43,"textLines":1,"bbox":[45,26,1500,60]}
+{"kind":"shape","id":"sh/zux8jm1o","slide":1,"bbox":[40,180,510,785]}
+{"kind":"shape","id":"sh/eto7qh03","slide":1,"bbox":[1050,180,510,785]}
+{"kind":"shape","id":"sh/90zqpwjq","slide":1,"bbox":[590,335,420,530]}
+{"kind":"textbox","id":"sh/ozq9wbi5","slide":1,"text":"1. Teacher & label screening","textPreview":"1. Teacher & label screening","textChars":28,"textLines":1,"bbox":[60,196,470,45]}
+{"kind":"textbox","id":"sh/nyh8n61k","slide":1,"text":"2. Student\ntraining","textPreview":"2. Student | training","textChars":19,"textLines":2,"bbox":[1070,194,220,66]}
+{"kind":"textbox","id":"sh/mx8ru10z","slide":1,"text":"Flag top-scored implicit negatives","textPreview":"Flag top-scored implicit negatives","textChars":34,"textLines":1,"bbox":[75,340,440,65]}
+{"kind":"textbox","id":"sh/x4jqtgjm","slide":1,"text":"Rank implicit negatives per class","textPreview":"Rank implicit negatives per class","textChars":33,"textLines":1,"bbox":[75,452,440,65]}
+{"kind":"textbox","id":"sh/w3a90bi1","slide":1,"text":"Predict training-set scores","textPreview":"Predict training-set scores","textChars":27,"textLines":1,"bbox":[75,564,440,65]}
+{"kind":"textbox","id":"sh/m5kr6dwf","slide":1,"text":"Train ResNet-50 teacher\nOriginal labels + BCE","textPreview":"Train ResNet-50 teacher | Original labels + BCE","textChars":45,"textLines":2,"bbox":[75,676,440,76]}
+{"kind":"textbox","id":"sh/76t8fix0","slide":1,"text":"Log-Mel patches","textPreview":"Log-Mel patches","textChars":15,"textLines":1,"bbox":[75,799,440,57]}
+{"kind":"textbox","id":"sh/87298ne5","slide":1,"text":"Training audio + original labels y","textPreview":"Training audio + original labels y","textChars":34,"textLines":1,"bbox":[75,907,440,57]}
+{"kind":"shape","id":"sh/98bqhsfq","slide":1,"bbox":[0,0,0,0]}
+{"kind":"shape","id":"sh/ut4raxwb","slide":1,"bbox":[0,0,0,0]}
+{"kind":"shape","id":"sh/vud8jixw","slide":1,"bbox":[0,0,0,0]}
+{"kind":"shape","id":"sh/wvm9cneh","slide":1,"bbox":[0,0,0,0]}
+{"kind":"shape","id":"sh/hwvqlsf2","slide":1,"bbox":[0,0,0,0]}
+{"kind":"textbox","id":"sh/ax07ytg7","slide":1,"text":"Enhanced labels\npositive / negative / ignored","textPreview":"Enhanced labels | positive / negative / ignored","textChars":45,"textLines":2,"bbox":[615,340,370,86]}
+{"kind":"textbox","id":"sh/by987yxs","slide":1,"text":"Targets y + binary mask M\n0: flagged    1: otherwise","textPreview":"Targets y + binary mask M | 0: flagged    1: otherwise","textChars":52,"textLines":2,"bbox":[615,250,370,66]}
+{"kind":"shape","id":"sh/f65wjq98","slide":1,"bbox":[0,0,0,0]}
+{"kind":"shape","id":"sh/e5wfq5sn","slide":1,"bbox":[0,0,0,0]}
+{"kind":"textbox","id":"sh/1snel0re","slide":1,"text":"Masked BCE\n−Σc [yc log(pc)\n+ Mc(1 − yc) log(1 − pc)]","textPreview":"Masked BCE | −Σc [yc log(pc) | + Mc(1 − yc) log(1 − pc)]","textChars":52,"textLines":3,"bbox":[1080,272,450,132]}
+{"kind":"shape","id":"sh/g7exsvqt","slide":1,"bbox":[0,0,0,0]}
+{"kind":"textbox","id":"sh/72lwfq9w","slide":1,"text":"Trained student","textPreview":"Trained student","textChars":15,"textLines":1,"bbox":[1115,103,380,56]}
+{"kind":"shape","id":"sh/61cvmlsr","slide":1,"bbox":[0,0,0,0]}
+{"kind":"textbox","id":"sh/t43eh0r2","slide":1,"text":"Student class probabilities pc","textPreview":"Student class probabilities pc","textChars":30,"textLines":1,"bbox":[1080,470,450,66]}
+{"kind":"textbox","id":"sh/s3uxovah","slide":1,"text":"Student CNN\nResNet-50 or MobileNetV1","textPreview":"Student CNN | ResNet-50 or MobileNetV1","textChars":36,"textLines":2,"bbox":[1080,611,450,84]}
+{"kind":"textbox","id":"sh/bypwra9g","slide":1,"text":"Log-Mel patches","textPreview":"Log-Mel patches","textChars":15,"textLines":1,"bbox":[1080,790,450,66]}
+{"kind":"textbox","id":"sh/qxgfyp8v","slide":1,"text":"Training audio","textPreview":"Training audio","textChars":14,"textLines":1,"bbox":[1080,907,450,57]}
+{"kind":"shape","id":"sh/83qts7qd","slide":1,"bbox":[0,0,0,0]}
+{"kind":"shape","id":"sh/94zulc7y","slide":1,"bbox":[0,0,0,0]}
+{"kind":"shape","id":"sh/mh8bqh87","slide":1,"bbox":[0,0,0,0]}
+{"kind":"shape","id":"sh/n2hcjmps","slide":1,"bbox":[0,0,0,0]}
+{"kind":"textbox","id":"sh/w7atwrq9","slide":1,"text":"Backpropagation","textPreview":"Backpropagation","textChars":15,"textLines":1,"bbox":[1320,163,225,32]}
+{"kind":"textbox","id":"sh/x8jupw7u","slide":1,"text":"Per-class threshold tc","textPreview":"Per-class threshold tc","textChars":22,"textLines":1,"bbox":[613,520,370,40]}
+{"kind":"textbox","id":"sh/a58buh8j","slide":1,"text":"Select a percentile of teacher\nscores on implicit negatives","textPreview":"Select a percentile of teacher | scores on implicit negatives","textChars":59,"textLines":2,"bbox":[610,570,380,67]}
+{"kind":"textbox","id":"sh/v61cnmpo","slide":1,"text":"Flag when score > tc","textPreview":"Flag when score > tc","textChars":20,"textLines":1,"bbox":[615,672,370,56]}
+{"kind":"textbox","id":"sh/kbat0r6l","slide":1,"text":"Explicit labels are retained","textPreview":"Explicit labels are retained","textChars":28,"textLines":1,"bbox":[610,761,380,52]}
+{"kind":"shape","id":"sh/5cjutw76","slide":1,"bbox":[509.6,490,85.8,0]}
+{"kind":"shape","id":"sh/5kbu9wb6","slide":1,"bbox":[392.66,663.5,319.68,0]}
+{"kind":"textbox","id":"sh/4j2tgrul","slide":1,"text":"Front end: 64 Mel bands, 25 ms Hann window, 10 ms hop; 96-frame patches, 50% overlap","textPreview":"Front end: 64 Mel bands, 25 ms Hann window, 10 ms hop; 96-frame patches, 50% overlap","textChars":84,"textLines":1,"bbox":[50,980,1490,30]}
+{"kind":"textbox","id":"sh/3itc7mt0","slide":1,"text":"Fonseca et al., IEEE SPL 27 (2020) 1235–1239.  DOI: 10.1109/LSP.2020.3006378","textPreview":"Fonseca et al., IEEE SPL 27 (2020) 1235–1239.  DOI: 10.1109/LSP.2020.3006378","textChars":76,"textLines":1,"bbox":[50,1014,1490,26]}
+{"kind":"notes","id":"nt/q6dc0h","slide":1,"text":"Source: https://arxiv.org/pdf/2005.00878 (v2), Fig. 1, Section III and Sections IV–V. Redrawn method diagram. Mask applies to the negative BCE term. Internal AudioSet includes explicit/implicit label metadata."}

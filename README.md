@@ -247,6 +247,41 @@ true/predicted intervals and frame accuracy; a CSV beside it contains every fram
 The threshold defaults to the checkpoint setting; use `--threshold` to override it. Use the held-out
 `test` partition only for the final selected experiment.
 
+## Export aligned audio for Audacity
+
+Both prediction scripts now automatically export three WAV files per sample in
+an `audio/` folder beside the HTML report: `*_original.wav`, `*_predicted.wav`,
+and `*_ground_truth.wav`. Predictions preserve the original audio where frame
+probability reaches the threshold; ground truth preserves audio inside the raw
+same-MID PRESENT annotation intervals (NOT_PRESENT intervals take precedence).
+All other samples are zero. Files retain the full source length, sample rate,
+channels and amplitude; they are written as float WAV without normalization,
+resampling, concatenation or fades. This is time gating, not source separation.
+
+Run on the training server with a checkpoint from the new split:
+
+```bash
+python inspect_matched_predictions.py \
+  --checkpoint experiments/EXPERIMENT/mylast.ckpt \
+  --partition tr cv --num-samples 20 --seed 7 \
+  --threshold 0.5 --device cpu \
+  --output-dir outputs/matched_audio_01
+```
+
+The output directory must be new or empty. The old `--copy-audio` flag is still
+accepted but is no longer required. An example set is
+`cv_004_0.78_original.wav`, `cv_004_0.78_predicted.wav`, and
+`cv_004_0.78_ground_truth.wav`; the number is that sample's frame accuracy.
+Download the whole output folder and import all three WAVs for the same sample
+into one Audacity project, aligned at time zero. Compare the tracks in spectrogram
+view with the same display settings. HTML reports also provide playback and
+download links; `summary.json` records the relative audio paths.
+
+The ground-truth audio uses raw annotation timestamps, while the HTML truth
+curve is aligned to feature frames and can differ by less than one frame at a
+boundary. Predictions are exported on all valid audio frames regardless of
+strong-label masks; accuracy is still calculated only on supervised frames.
+
 ## Relevant files
 
 - `datasets/paths/audioset_paths.py`: joins strong annotations, weak labels,

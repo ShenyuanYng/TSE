@@ -9,6 +9,7 @@ import math
 from pathlib import Path
 
 import numpy as np
+import soundfile as sf
 import torch
 
 from creators.dataset import datapath_creator, dataset_creator
@@ -89,6 +90,44 @@ def _safe_div(numerator, denominator):
     return numerator / denominator if denominator else float("nan")
 
 
+def _audio_interval_mask(intervals, frames, sample_rate, sample_aligned=False):
+    """Map half-open intervals to samples without shifting or shortening audio."""
+    mask = np.zeros(frames, dtype=bool)
+    for onset, offset in intervals:
+        if not (math.isfinite(onset) and math.isfinite(offset)) or offset <= onset:
+            raise ValueError(f"Invalid audio interval: {onset}, {offset}")
+        # Predicted frame timestamps originate on the sample grid but are float32.
+        # Raw annotations may lie between samples and use the half-open convention.
+        convert = round if sample_aligned else lambda value: math.ceil(value - 1e-7)
+        start = min(frames, max(0, convert(onset * sample_rate)))
+        stop = min(frames, max(0, convert(offset * sample_rate)))
+        mask[start:stop] = True
+    return mask
+
+
+def _export_audio_comparison(report_path, source_path, predicted_intervals, events, mid):
+    """Export aligned raw-amplitude WAVs; this is time gating, not separation."""
+    report_path = Path(report_path)
+    waveform, sr = sf.read(source_path, dtype="float32", always_2d=True)
+    predicted = _audio_interval_mask(predicted_intervals, len(waveform), sr, sample_aligned=True)
+    positive, negative = [], []
+    for event in events:
+        if event["mid"] == mid:
+            intervals = positive if event.get("present", True) else negative
+            intervals.append((event["onset"], event["offset"]))
+    truth = _audio_interval_mask(positive, len(waveform), sr)
+    truth &= ~_audio_interval_mask(negative, len(waveform), sr)
+    (report_path.parent / "audio").mkdir(parents=True, exist_ok=True)
+    urls = {}
+    for role, keep in (("original", None), ("predicted", predicted), ("ground_truth", truth)):
+        relative = f"audio/{report_path.stem}_{role}.wav"
+        # Float WAV avoids additional PCM quantization or clipping after decoding.
+        audio = waveform if keep is None else np.where(keep[:, None], waveform, 0.0)
+        sf.write(report_path.parent / relative, audio, sr, subtype="FLOAT")
+        urls[role] = relative
+    return urls
+
+
 def _format_number(value):
     return "N/A" if not math.isfinite(value) else f"{value:.4f}"
 
@@ -109,7 +148,7 @@ def _svg(times, probabilities, valid, truth_intervals, predicted_intervals, thre
     valid_times = times[valid]
     start = 0.0 if end_time is not None else float(valid_times[0])
     end = float(end_time) if end_time is not None else max(
-        float(valid_times[-1]), *(offset for _, offset in truth_intervals + predicted_intervals))
+        [float(valid_times[-1])] + [offset for _, offset in truth_intervals + predicted_intervals])
     if end <= start:
         end = start + 1.0
 
@@ -174,7 +213,7 @@ def _svg(times, probabilities, valid, truth_intervals, predicted_intervals, thre
 
 def _write_report(output_path, metadata, metrics, times, labels, probabilities, valid,
                   truth_intervals, predicted_intervals, threshold, audio_url=None,
-                  end_time=None):
+                  end_time=None, audio_files=None):
     output_path.parent.mkdir(parents=True, exist_ok=True)
     csv_path = output_path.with_suffix(".csv")
     with csv_path.open("w", newline="", encoding="utf-8") as handle:
@@ -194,6 +233,17 @@ def _write_report(output_path, metadata, metrics, times, labels, probabilities, 
                    end_time=end_time)
     audio_player = (f'<audio controls preload="none" src="{html.escape(audio_url, quote=True)}"></audio>'
                     if audio_url else "")
+    if audio_files:
+        audio_player = '<h2>对齐音频（可一起导入 Audacity）</h2>'
+        for role, title in (("original", "原始音频"), ("predicted", "预测区间保留原声"),
+                            ("ground_truth", "真实标注区间保留原声")):
+            url = html.escape(audio_files[role], quote=True)
+            audio_player += (f'<p>{title}：<a href="{url}" download>下载 WAV</a></p>'
+                             f'<audio controls preload="none" src="{url}"></audio>')
+        audio_player += ('<p>三条音频长度、采样率、声道和时间起点一致，保留原始幅度。'
+                         '预测音频按阈值区间保留，真实标注音频按原始标注秒数保留，其余位置静音。'
+                         '没有拼接、归一化或淡入淡出；保留区间仍包含原音频中的其他声音。'
+                         '下方真实标签曲线按特征帧对齐，与原始标注边界可能有不足一帧的差异。</p>')
     document = f"""<!doctype html>
 <html lang="zh-CN"><head><meta charset="utf-8"><title>AudioSet 单样本预测对比</title>
 <style>
@@ -268,8 +318,14 @@ def main():
         "Accuracy": _safe_div(correct, int(valid.sum())),
     }
     hop_seconds = float(hparams.hoptime)
-    truth_intervals = _intervals(positive & valid, times, hop_seconds)
-    predicted_intervals = _intervals(binary & valid, times, hop_seconds)
+    duration = sf.info(target["audio_path"]).duration
+    truth_intervals = _intervals(positive & valid, times, hop_seconds, duration)
+    # Export predictions independently of annotation availability.
+    audio_valid = frame_mask & (times < duration)
+    if not np.isfinite(probabilities[audio_valid]).all():
+        raise FloatingPointError("Nonfinite probabilities in audio frames")
+    predicted_intervals = _intervals(binary & audio_valid,
+                                     times, hop_seconds, duration)
     class_index = int(target["class_index"])
     metadata = {
         "checkpoint": str(args.checkpoint.resolve()),
@@ -285,9 +341,13 @@ def main():
         "threshold": args.threshold,
         "device": str(device),
     }
+    entry_index, mid = dataset.samples[index]
+    audio_files = _export_audio_comparison(args.output.resolve(), target["audio_path"],
+                                           predicted_intervals,
+                                           dataset.path_list[entry_index].get("events", []), mid)
     csv_path = _write_report(args.output.resolve(), metadata, metrics, times, labels,
                              probabilities, valid, truth_intervals, predicted_intervals,
-                             args.threshold)
+                             args.threshold, end_time=duration, audio_files=audio_files)
     print(f"Wrote {args.output.resolve()}")
     print(f"Wrote {csv_path}")
     print(" | ".join(f"{name}={_format_number(value)}" for name, value in metrics.items()))

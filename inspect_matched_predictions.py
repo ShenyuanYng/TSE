@@ -9,7 +9,6 @@ import html
 import json
 import math
 import random
-import shutil
 from pathlib import Path
 
 import numpy as np
@@ -20,7 +19,7 @@ from creators.dataset import datapath_creator, dataset_creator
 from datasets.paths.audioset_paths import resolve_path
 from datasets.train_split import validate_split_config
 from inspect_prediction import (_load_checkpoint, _move_to_device, _intervals,
-                                _safe_div, _write_report)
+                                _safe_div, _write_report, _export_audio_comparison)
 from utils.collate import collate_seq
 
 
@@ -92,6 +91,8 @@ th{{background:#f5f7fa}}code{{overflow-wrap:anywhere}}li{{margin:8px 0}}</style>
 <p>tr 为训练集诊断，cv 为验证集诊断。只包含匹配正例，不能代表完整数据集，
 也不能衡量不存在目标类别时的拒绝能力；同 MID 匹配不等于人工核实。</p>
 <p>每个页面包含概率曲线、真实区间、阈值生成的伪强标签区间及逐帧 CSV。
+每个样本在 audio/ 中有 original、predicted、ground_truth 三条对齐 WAV，
+将同一样本的三条音频一起导入 Audacity，可比较波形和频谱；区间外静音，不拼接。
 人工原始标注见 <a href="ground_truth.tsv">ground_truth.tsv</a>；
 预测区间见 <a href="pseudo_strong.tsv">pseudo_strong.tsv</a>；
 统计和跳过原因见 <a href="summary.json">summary.json</a>。</p>
@@ -102,6 +103,8 @@ th{{background:#f5f7fa}}code{{overflow-wrap:anywhere}}li{{margin:8px 0}}</style>
 
 def run(checkpoint, output, partitions=("tr", "cv"), num_samples=20, seed=7,
         threshold=None, device="cpu", copy_audio=False):
+    # Retain the old argument for existing commands; aligned WAVs are now always exported.
+    del copy_audio
     if num_samples < 1:
         raise ValueError("num_samples must be positive")
     if not partitions or any(part not in ("tr", "cv") for part in partitions):
@@ -125,6 +128,8 @@ def run(checkpoint, output, partitions=("tr", "cv"), num_samples=20, seed=7,
                    selection="uniform random matched clip-MID targets, before prediction",
                    split_file=str(split_path),
                    split_sha256=hashlib.sha256(split_path.read_bytes()).hexdigest(),
+                   audio_export="Original amplitude and channels; predictions thresholded on the frame grid; "
+                                "ground truth gated by raw annotation times; silence outside intervals",
                    partitions={})
     rows, pseudo, truth_rows = [], [], []
     for part in dict.fromkeys(partitions):
@@ -153,7 +158,11 @@ def run(checkpoint, output, partitions=("tr", "cv"), num_samples=20, seed=7,
                      & prediction["frame_mask"][0].cpu().numpy().astype(bool))
             metrics, counts = frame_metrics(labels, probabilities, valid, threshold)
             true_intervals = _intervals((labels >= .5) & valid, times, hp.hoptime, duration)
-            pred_intervals = _intervals((probabilities >= threshold) & valid, times, hp.hoptime, duration)
+            audio_valid = prediction["frame_mask"][0].cpu().numpy().astype(bool) & (times < duration)
+            if not np.isfinite(probabilities[audio_valid]).all():
+                raise FloatingPointError("Nonfinite probabilities in audio frames")
+            pred_intervals = _intervals((probabilities >= threshold) & audio_valid,
+                                        times, hp.hoptime, duration)
             name = f"{part}_{rank:03d}_{metrics['Accuracy']:.2f}"
             class_name = dataset.class_names[int(target["class_index"])]
             metadata = dict(checkpoint=str(checkpoint), partition=part, sample_index=index,
@@ -162,19 +171,14 @@ def run(checkpoint, output, partitions=("tr", "cv"), num_samples=20, seed=7,
                             match_rule="weak MID == PRESENT strong MID（未人工核实）",
                             valid_frames=int(valid.sum()), positive_frames=int(((labels >= .5) & valid).sum()),
                             audio_duration_seconds=duration)
-            audio_url = None
-            if copy_audio:
-                source = Path(target["audio_path"])
-                audio_url = f"audio/{hashlib.sha256(str(source).encode()).hexdigest()[:20]}{source.suffix}"
-                destination = output / audio_url
-                destination.parent.mkdir(exist_ok=True)
-                if not destination.exists():
-                    shutil.copyfile(source, destination)
+            audio_files = _export_audio_comparison(output / f"{name}.html", target["audio_path"],
+                                                   pred_intervals, entry.get("events", []), mid)
             _write_report(output / f"{name}.html", metadata, metrics, times, labels,
                           probabilities, valid, true_intervals, pred_intervals, threshold,
-                          audio_url=audio_url, end_time=duration)
+                          end_time=duration, audio_files=audio_files)
             rows.append(dict(partition=part, sample_index=index, clip_id=entry["id"],
                              mid=mid, class_name=class_name, report=f"{name}.html",
+                             audio_files=audio_files,
                              **counts, **_finite_metrics(metrics)))
             pseudo.extend((part, entry["id"], start, end, mid) for start, end in pred_intervals)
             truth_rows.extend((part, entry["id"], event["onset"], event["offset"], mid,
@@ -206,7 +210,8 @@ def main():
     parser.add_argument("--seed", type=int, default=7)
     parser.add_argument("--threshold", type=float, help="Default: checkpoint frame_accuracy_threshold")
     parser.add_argument("--device", choices=("cpu", "cuda"), default="cpu")
-    parser.add_argument("--copy-audio", action="store_true", help="Copy selected audio for portable HTML playback")
+    parser.add_argument("--copy-audio", action="store_true",
+                        help="Accepted for compatibility; three aligned WAVs are always exported")
     args = parser.parse_args()
     torch.set_num_threads(2)
     run(args.checkpoint, args.output_dir, args.partition, args.num_samples, args.seed,
