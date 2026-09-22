@@ -127,10 +127,16 @@ not an average of batch or class accuracies. Padding and unknown positions are
 excluded using `strong_mask & frame_mask`. Classes without positives still count
 if they have supervised negative frames.
 
-Only correct/valid counts are stored for each clip-condition pair. Distributed
+Validation additionally logs `val_frame_accuracy`, `val_frame_precision`,
+`val_frame_recall`, and `val_frame_f1`. Precision, recall and F1 are computed from
+the full epoch's TP/FP/FN/TN counts after deduplication, never averaged over
+batches. Their zero-denominator values are 0 when valid frames exist.
+
+Only TP/FP/FN/TN counts are stored for each clip-condition pair. Distributed
 evaluation gathers these counts and deduplicates repeated pairs. Results, counts
 and threshold are saved as `val_frame_accuracy.json` / `test_frame_accuracy.json`.
-If no valid frames exist, JSON accuracy is null and the logged metric is NaN.
+Counts reset after each epoch. If no valid frames exist, JSON metrics are null
+and logged metrics are NaN.
 The old mAP implementation and logging code are commented out for reference;
 no AP computation or AP report runs during validation or test.
 

@@ -27,8 +27,20 @@ class MetricsAndSplitTest(unittest.TestCase):
         self.assertEqual(result["correct_frames"], 2)
         self.assertEqual(result["valid_frames"], 5)
         self.assertEqual(result["conditional_frame_accuracy"], .4)
+        self.assertEqual((result["tp"], result["fp"], result["fn"], result["tn"]),
+                         (1, 2, 1, 1))
+        self.assertAlmostEqual(result["conditional_frame_precision"], 1 / 3)
+        self.assertEqual(result["conditional_frame_recall"], .5)
+        # The batch F1 values are .4 and 0: averaging them would give .2.
+        self.assertEqual(result["conditional_frame_f1"], .4)
         metric.reset()
-        self.assertIsNone(metric.compute()["conditional_frame_accuracy"])
+        self.assertFalse(metric.rows)
+        for name in ("accuracy", "precision", "recall", "f1"):
+            self.assertIsNone(metric.compute()[f"conditional_frame_{name}"])
+        # The next epoch must not include any previous counts.
+        metric.update(pred, target)
+        self.assertEqual(metric.compute()["valid_frames"], 4)
+        self.assertEqual(metric.compute()["tn"], 0)
 
     def test_accuracy_threshold_empty_mask_and_nonfinite_predictions(self):
         pred = {"frame_probs": torch.tensor([[.5, .6]]),
@@ -38,6 +50,8 @@ class MetricsAndSplitTest(unittest.TestCase):
         metric = ConditionalFrameAccuracy(.6)
         metric.update(pred, target)
         self.assertEqual(metric.compute()["conditional_frame_accuracy"], 1.)
+        for name in ("precision", "recall", "f1"):
+            self.assertEqual(metric.compute()[f"conditional_frame_{name}"], 1.)
         pred["frame_probs"][0, 0] = float("nan")
         with self.assertRaises(FloatingPointError):
             metric.update(pred, target)
@@ -51,8 +65,8 @@ class MetricsAndSplitTest(unittest.TestCase):
 
     def test_distributed_accuracy_deduplicates_before_counting(self):
         metric = ConditionalFrameAccuracy()
-        metric.rows = {("a", 0): (2, 3)}
-        remote = {("a", 0): (2, 3), ("b", 1): (1, 2)}
+        metric.rows = {("a", 0): (1, 1, 0, 1)}
+        remote = {("a", 0): (1, 1, 0, 1), ("b", 1): (0, 0, 1, 1)}
 
         def gather(parts, rows):
             parts[:] = [rows, remote]
@@ -65,6 +79,26 @@ class MetricsAndSplitTest(unittest.TestCase):
         self.assertEqual(result["correct_frames"], 3)
         self.assertEqual(result["valid_frames"], 5)
         self.assertEqual(result["conditional_frame_accuracy"], .6)
+        self.assertEqual((result["tp"], result["fp"], result["fn"], result["tn"]),
+                         (1, 1, 1, 2))
+        for name in ("precision", "recall", "f1"):
+            self.assertEqual(result[f"conditional_frame_{name}"], .5)
+
+    def test_zero_denominators(self):
+        for probabilities, labels in (([.1, .2], [0., 0.]),
+                                      ([.1, .2], [1., 1.]),
+                                      ([.8, .9], [0., 0.])):
+            with self.subTest(probabilities=probabilities, labels=labels):
+                metric = ConditionalFrameAccuracy()
+                metric.update(
+                    {"frame_probs": torch.tensor([probabilities]),
+                     "frame_mask": torch.ones(1, 2, dtype=torch.bool)},
+                    {"strong_labels": torch.tensor([labels]),
+                     "strong_mask": torch.ones(1, 2), "utt_id": ["a"], "class_index": [0]},
+                )
+                result = metric.compute()
+                for name in ("precision", "recall", "f1"):
+                    self.assertEqual(result[f"conditional_frame_{name}"], 0.)
 
     def test_loss_ignores_masked_positions(self):
         logits = torch.tensor([[0., 100., -100.]], requires_grad=True)

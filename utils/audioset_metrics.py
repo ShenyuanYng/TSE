@@ -1,4 +1,4 @@
-"""Epoch-level conditional frame accuracy; padding and unknown frames excluded."""
+"""Epoch-level conditional frame metrics; padding and unknown frames excluded."""
 import math
 
 import torch
@@ -9,7 +9,7 @@ def tensor(value):
 
 
 class ConditionalFrameAccuracy:
-    """Count correct/valid frames, deduplicating clip-condition pairs across DDP."""
+    """Accumulate TP/FP/FN/TN, deduplicating clip-condition pairs across DDP."""
 
     def __init__(self, threshold=0.5):
         if not math.isfinite(threshold) or not 0 <= threshold <= 1:
@@ -17,7 +17,7 @@ class ConditionalFrameAccuracy:
         self.threshold = float(threshold)
         self.rows = {} #初始化，临时仓库
 
-    #每个batch调一次 统计当前 batch 中每个 sample 有多少帧预测正确，然后保存结果
+    # Store only confusion counts per sample so DDP sampler repeats can be removed.
     def update(self, predictions, targets):
         probabilities = predictions["frame_probs"].detach()#模型预测结果[B,T]
         labels = tensor(targets["strong_labels"]).to(probabilities.device)#strong label
@@ -26,31 +26,40 @@ class ConditionalFrameAccuracy:
         if not torch.isfinite(probabilities[mask]).all():
             raise FloatingPointError("Nonfinite probabilities in supervised evaluation frames")
 
-        correct = ((probabilities >= self.threshold) == (labels >= 0.5)) & mask
-        # 统计每一个batch里面的sample中的正确帧和有效帧
-        counts = torch.stack((correct.sum(dim=1), mask.sum(dim=1)), dim=1).cpu().tolist()
+        positive = probabilities >= self.threshold
+        actual_positive = labels >= 0.5
+        counts = torch.stack([
+            (positive & actual_positive & mask).sum(dim=1),
+            (positive & ~actual_positive & mask).sum(dim=1),
+            (~positive & actual_positive & mask).sum(dim=1),
+            (~positive & ~actual_positive & mask).sum(dim=1),
+        ], dim=1).cpu().tolist()
         for clip, category, pair in zip(targets["utt_id"], targets["class_index"], counts):
             self.rows[(clip, int(category))] = tuple(pair)
-        """
-        rows = {
-(Audio_A, Dog):      (450,500),
-(Audio_B, Speech):   (420,500),
-(Audio_C, Dog):      (390,480),
-(Audio_D, Car):      (470,500),
-...
-}
-        """
-    #epoch完成后计算accuracy
+
+    # Compute ratios once from the entire deduplicated epoch, never per batch.
     def compute(self):
         rows = self.rows
         if torch.distributed.is_available() and torch.distributed.is_initialized():
             gathered = [None] * torch.distributed.get_world_size()
             torch.distributed.all_gather_object(gathered, rows)
             rows = {key: value for part in gathered for key, value in part.items()}
-        correct = sum(pair[0] for pair in rows.values())#所有正确帧
-        total = sum(pair[1] for pair in rows.values())#有效帧
+        tp, fp, fn, tn = (sum(row[i] for row in rows.values()) for i in range(4))
+        correct = tp + tn
+        total = tp + fp + fn + tn
+        # Undefined ratios are zero; an epoch without valid frames stays empty.
+        precision = tp / (tp + fp) if tp + fp else 0.0
+        recall = tp / (tp + fn) if tp + fn else 0.0
+        f1 = 2 * tp / (2 * tp + fp + fn) if 2 * tp + fp + fn else 0.0
         return {
             "conditional_frame_accuracy": correct / total if total else None,
+            "conditional_frame_precision": precision if total else None,
+            "conditional_frame_recall": recall if total else None,
+            "conditional_frame_f1": f1 if total else None,
+            "tp": tp,
+            "fp": fp,
+            "fn": fn,
+            "tn": tn,
             "correct_frames": correct,
             "valid_frames": total,
             "threshold": self.threshold,

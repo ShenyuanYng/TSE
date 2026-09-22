@@ -77,6 +77,16 @@ class TrainingIntegrationTest(unittest.TestCase):
                               logger=False, callbacks=[checkpoint], enable_progress_bar=False,
                               enable_model_summary=False, num_sanity_val_steps=1)
             trainer.fit(model)
+            validation_metrics = json.loads(
+                (root / "results/version_first/val_frame_accuracy.json").read_text())
+            for name in ("accuracy", "precision", "recall", "f1"):
+                key = f"val_frame_{name}"
+                self.assertIn(key, trainer.callback_metrics)
+                self.assertAlmostEqual(trainer.callback_metrics[key].item(),
+                                       validation_metrics[key], places=6)
+            self.assertEqual(validation_metrics["val_frame_accuracy"],
+                             validation_metrics["conditional_frame_accuracy"])
+            self.assertFalse(model.val_accuracy.rows)
             self.assertTrue(checkpoint.best_model_path)
             self.assertTrue((root / "metadata/train_val_split.json").exists())
             self.assertEqual(len(model.split_paths["tr"]), 1)

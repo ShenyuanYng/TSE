@@ -310,6 +310,18 @@ class SourceSeparator(pl.LightningModule):
         # compute() already gathers and deduplicates all ranks.
         self.log(f"{prefix}_conditional_frame_accuracy",
                  value if value is not None else float("nan"), sync_dist=False)
+        if prefix == "val":
+            for name in ("accuracy", "precision", "recall", "f1"):
+                frame_value = result[f"conditional_frame_{name}"]
+                result[f"val_frame_{name}"] = frame_value
+                self.log(f"val_frame_{name}",
+                         frame_value if frame_value is not None else float("nan"),
+                         on_step=False, on_epoch=True, sync_dist=False)
+            logger.info(
+                "val_frame_accuracy={}, val_frame_precision={}, val_frame_recall={}, val_frame_f1={}",
+                result["val_frame_accuracy"], result["val_frame_precision"],
+                result["val_frame_recall"], result["val_frame_f1"],
+            )
         logger.info("{} conditional frame accuracy={}, correct/valid frames={}/{}",
                     prefix, value, result["correct_frames"], result["valid_frames"])
         if self.global_rank == 0:
