@@ -3,6 +3,7 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 import numpy as np
 import soundfile as sf
@@ -16,6 +17,28 @@ from utils.config import yaml_to_parser
 
 
 class PredictionAudioTest(unittest.TestCase):
+    def test_export_with_soundfile_rejecting_path_objects(self):
+        read, write = sf.read, sf.write
+
+        def strings_only(function):
+            def call(path, *args, **kwargs):
+                if not isinstance(path, str):
+                    raise TypeError(f"Invalid file: {path!r}")
+                return function(path, *args, **kwargs)
+            return call
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "source.wav"
+            write(str(source), np.full(1600, .25), 16000, subtype="FLOAT")
+            with patch("inspect_prediction.sf.read", side_effect=strings_only(read)), \
+                 patch("inspect_prediction.sf.write", side_effect=strings_only(write)):
+                urls = _export_audio_comparison(root / "report.html", source,
+                                                [(0., .05)], [], "A")
+            for url in urls.values():
+                audio, sr = read(str(root / url))
+                self.assertEqual((len(audio), sr), (1600, 16000))
+
     def test_stereo_alignment_and_raw_annotation_boundaries(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

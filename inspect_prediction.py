@@ -108,7 +108,7 @@ def _audio_interval_mask(intervals, frames, sample_rate, sample_aligned=False):
 def _export_audio_comparison(report_path, source_path, predicted_intervals, events, mid):
     """Export aligned raw-amplitude WAVs; this is time gating, not separation."""
     report_path = Path(report_path)
-    waveform, sr = sf.read(source_path, dtype="float32", always_2d=True)
+    waveform, sr = sf.read(str(source_path), dtype="float32", always_2d=True)
     predicted = _audio_interval_mask(predicted_intervals, len(waveform), sr, sample_aligned=True)
     positive, negative = [], []
     for event in events:
@@ -123,7 +123,8 @@ def _export_audio_comparison(report_path, source_path, predicted_intervals, even
         relative = f"audio/{report_path.stem}_{role}.wav"
         # Float WAV avoids additional PCM quantization or clipping after decoding.
         audio = waveform if keep is None else np.where(keep[:, None], waveform, 0.0)
-        sf.write(report_path.parent / relative, audio, sr, subtype="FLOAT")
+        # Older soundfile releases do not accept pathlib.Path objects.
+        sf.write(str(report_path.parent / relative), audio, sr, subtype="FLOAT")
         urls[role] = relative
     return urls
 
