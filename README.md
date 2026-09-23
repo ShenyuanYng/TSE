@@ -234,6 +234,49 @@ python -m unittest \
   -v
 ```
 
+## Validation threshold sweep (no training)
+
+Use the `val_loss` best checkpoint recorded in an existing experiment:
+
+```bash
+python -u sweep_validation_thresholds.py \
+  --run-dir experiments/audioset_strong/EXPERIMENT \
+  --device cuda \
+  --output-dir outputs/threshold_sweep_best
+```
+
+`--run-dir` reads `mylast.ckpt` only to locate the saved `best_model_path`;
+the actual predictions use the best checkpoint's weights. Alternatively, pass
+`--checkpoint /path/to/best.ckpt` instead of `--run-dir`.
+Use the same compute node/data paths as the original run. For a run trained on
+ailab01, request a separate validation allocation from the project directory:
+
+```bash
+srun --partition=L40 --nodelist=ailab01 --gres=gpu:1 \
+  --cpus-per-task=6 --mem=32G --time=02:00:00 \
+  /home/$USER/anaconda3/envs/audioset/bin/python -u sweep_validation_thresholds.py \
+  --run-dir experiments/audioset_strong/EXPERIMENT --device cuda \
+  --output-dir outputs/threshold_sweep_best
+```
+
+The default thresholds are `0.3 0.4 0.5 0.6 0.7 0.8 0.9`. The script runs in
+evaluation/inference mode and traverses the full saved validation split once.
+Each batch produces one `frame_probs` tensor shared by all thresholds. Only
+TP/FP/FN/TN counts are kept, using the existing `strong_mask & frame_mask`,
+clip-condition deduplication and epoch-level metric formulas. No loss, optimizer,
+training loop or checkpoint write is involved, and the configured threshold stays
+unchanged. Missing split files or a changed clip inventory cause an error.
+
+It prints Precision/Recall/F1/Accuracy for every threshold and writes
+`threshold_sweep.json` and `threshold_sweep.csv`, including confusion counts.
+The JSON also records the chosen checkpoint, epoch, validation split hash and
+number of prediction batches. Defaults reuse the checkpoint's batch size and
+worker count; `--batch-size` and `--num-workers` may override inference resources.
+Zero denominators and empty supervision follow the existing validation metrics.
+At threshold 0.5, compare with the training log at the **best checkpoint's epoch**,
+which may differ from the final epoch. The sweep does not select or apply a new
+training threshold automatically.
+
 ## Inspect one prediction
 
 Compare a trained checkpoint's frame probabilities with the real strong label

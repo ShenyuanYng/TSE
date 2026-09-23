@@ -11,6 +11,7 @@ from pytorch_lightning import Trainer
 from train import _checkpoint_callback
 from resume_training import continue_run, completed_epochs
 from source_separator import SourceSeparator
+from sweep_validation_thresholds import best_checkpoint, run as run_threshold_sweep
 from utils.config import yaml_to_parser
 
 
@@ -88,6 +89,12 @@ class TrainingIntegrationTest(unittest.TestCase):
                              validation_metrics["conditional_frame_accuracy"])
             self.assertFalse(model.val_accuracy.rows)
             self.assertTrue(checkpoint.best_model_path)
+            self.assertEqual(best_checkpoint(root / "results"), Path(checkpoint.best_model_path).resolve())
+            sweep = run_threshold_sweep(checkpoint.best_model_path, root / "sweep", device="cpu")
+            at_training_threshold = next(row for row in sweep["results"] if row["threshold"] == 0.7)
+            for name in ("accuracy", "precision", "recall", "f1"):
+                self.assertEqual(at_training_threshold[name], validation_metrics[f"val_frame_{name}"])
+            self.assertEqual(at_training_threshold["valid_frames"], validation_metrics["valid_frames"])
             self.assertTrue((root / "metadata/train_val_split.json").exists())
             self.assertEqual(len(model.split_paths["tr"]), 1)
             self.assertEqual(len(model.split_paths["cv"]), 1)
