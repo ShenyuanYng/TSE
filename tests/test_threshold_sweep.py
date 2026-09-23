@@ -73,6 +73,17 @@ class ThresholdSweepTest(unittest.TestCase):
         # Reusing the sweep function cannot carry counts into the next invocation.
         fresh, _ = sweep_batches(module, [second], "cpu", log_every=0)
         self.assertTrue(all(row["valid_frames"] == 1 and row["tn"] == 1 for row in fresh))
+        model.calls = 0
+        per_class, batches = sweep_batches(module, [first, first, second], "cpu",
+                                           thresholds=(.7,), log_every=0, include_per_class=True)
+        self.assertEqual((model.calls, batches), (3, 3))
+        self.assertEqual(per_class[0]["valid_class_count"], 3)
+        self.assertEqual(per_class[0]["macro_f1"], 0.)
+        self.assertEqual(len(per_class[0]["per_class"]), 3)
+
+    def test_per_class_threshold_is_fixed(self):
+        with self.assertRaisesRegex(ValueError, "fixed threshold of 0.7"):
+            run("unused.ckpt", thresholds=(.5,), per_class=True)
 
     def test_best_selection_uses_saved_callback_and_supports_moved_run(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -105,12 +116,12 @@ class ThresholdSweepTest(unittest.TestCase):
                 strong.append(f"{clip}_0\t0.032\t0.064\tA\n")
             (root / "weak.csv").write_text("".join(weak))
             (root / "strong.tsv").write_text("".join(strong))
-            (root / "classes.csv").write_text("index,mid,display_name\n0,A,Target\n")
+            (root / "classes.csv").write_text('index,mid,display_name\n0,A,"Target, A"\n1,B,Unseen\n')
             hp = yaml_to_parser("exp_defs/audioset_params.yaml").parse_args([])
             hp.data_path, hp.class_map_path = str(root), "classes.csv"
             hp.train_audio_dir, hp.train_weak_manifest = [str(audio)], ["weak.csv"]
             hp.train_strong_manifest, hp.train_val_fraction = "strong.tsv", .5
-            hp.num_classes, hp.audioset_conv_channels = 1, [4]
+            hp.num_classes, hp.audioset_conv_channels = 2, [4]
             hp.audioset_temporal_hidden, hp.audioset_rnn_layers = 4, 1
             hp.audioset_embedding_dim, hp.batch_size, hp.num_workers = 3, 1, 0
             split_train(entries, root, hp.train_split_path, hp.train_val_fraction, hp.train_split_seed)
@@ -150,6 +161,38 @@ class ThresholdSweepTest(unittest.TestCase):
                 self.assertEqual(row["tp"] + row["fn"], results[0]["tp"] + results[0]["fn"])
             self.assertEqual([row["recall"] for row in results],
                              sorted((row["recall"] for row in results), reverse=True))
+            with patch("source_separator.loss_creator", return_value=loss), \
+                 patch.object(SourceSeparator, "configure_optimizers",
+                              side_effect=AssertionError("Per-class validation must not train")), \
+                 redirect_stdout(output):
+                class_report = run(checkpoint, root / "per_class", device="cpu", per_class=True)
+            loss.assert_not_called()
+            self.assertEqual(class_report["prediction_batches"], 2)
+            self.assertEqual(len(class_report["results"]), 1)
+            aggregate = class_report["results"][0]
+            self.assertEqual(aggregate["threshold"], .7)
+            for key in ("tp", "fp", "fn", "tn", "precision", "recall", "f1", "accuracy"):
+                self.assertEqual(aggregate[key], results[4][key])
+            self.assertEqual(aggregate["valid_class_count"], 1)
+            self.assertEqual(aggregate["macro_f1"], aggregate["f1"])
+            with (root / "per_class/per_class_metrics.csv").open() as handle:
+                class_rows = list(csv.DictReader(handle))
+            self.assertEqual([row["mid"] for row in class_rows], ["A", "B"])
+            self.assertEqual(class_rows[0]["class_name"], "Target, A")
+            self.assertEqual(class_rows[1]["valid_frames"], "0")
+            self.assertEqual(class_rows[1]["included_in_macro"], "False")
+            self.assertEqual(class_rows[1]["f1"], "")
+            self.assertEqual(int(class_rows[0]["tp"]), aggregate["tp"])
+            self.assertEqual(json.loads((root / "per_class/threshold_sweep.json").read_text()), class_report)
+            with (root / "per_class/threshold_sweep.csv").open() as handle:
+                summary = list(csv.DictReader(handle))
+            self.assertEqual(len(summary), 1)
+            self.assertEqual(summary[0]["valid_class_count"], "1")
+            self.assertNotIn("per_class", summary[0])
+            self.assertIn("macro_f1=", output.getvalue())
+            self.assertIn("valid_class_count=1", output.getvalue())
+            self.assertEqual(checkpoint.read_bytes(), original_checkpoint)
+            self.assertEqual(split.read_bytes(), original_split)
             # Existing inventory validation must refuse a different validation set.
             saved = json.loads(split.read_text())
             saved["cv"].pop()

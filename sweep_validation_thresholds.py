@@ -1,9 +1,10 @@
-"""Evaluate a saved checkpoint on validation once, sweeping frame thresholds."""
+"""Evaluate a checkpoint: threshold sweep or per-class validation at 0.7."""
 
 import argparse
 import csv
 import hashlib
 import json
+import sys
 from pathlib import Path
 
 import torch
@@ -14,11 +15,14 @@ from datasets.paths.audioset_paths import resolve_path
 from datasets.train_split import validate_split_config
 from inspect_prediction import _move_to_device
 from source_separator import SourceSeparator
-from utils.audioset_metrics import ConditionalFrameAccuracy
+from utils.audioset_metrics import ConditionalFrameAccuracy, frame_metrics_from_counts
 
 
 DEFAULT_THRESHOLDS = (0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9)
 METRICS = ("precision", "recall", "f1", "accuracy")
+PER_CLASS_FIELDS = ("mid", "class_name", "class_index", "tp", "fp", "fn", "tn",
+                    "precision", "recall", "f1", "accuracy", "valid_frames",
+                    "included_in_macro")
 
 
 def best_checkpoint(run_dir):
@@ -45,7 +49,7 @@ def best_checkpoint(run_dir):
 
 @torch.inference_mode()
 def sweep_batches(module, batches, device, thresholds=DEFAULT_THRESHOLDS,
-                  epoch=0, log_every=50):
+                  epoch=0, log_every=50, include_per_class=False):
     """One forward per batch; only per-pair TP/FP/FN/TN survive the batch."""
     thresholds = tuple(thresholds)
     if not thresholds or len(set(thresholds)) != len(thresholds):
@@ -63,18 +67,25 @@ def sweep_batches(module, batches, device, thresholds=DEFAULT_THRESHOLDS,
             print(f"Validation batches processed: {batch_count}", flush=True)
     results = []
     for metric in metrics:
-        counts = metric.compute()  # Existing epoch aggregation and DDP deduplication.
+        counts = metric.compute(include_per_class=include_per_class)
         results.append({
             "threshold": metric.threshold,
             **{name: counts[f"conditional_frame_{name}"] for name in METRICS},
             **{name: counts[name] for name in ("tp", "fp", "fn", "tn", "valid_frames")},
         })
+        if include_per_class:
+            results[-1].update({name: counts[name]
+                               for name in ("macro_f1", "valid_class_count", "per_class")})
         metric.reset()
     return results, batch_count
 
 
 def run(checkpoint_path, output_dir=None, device="auto", batch_size=None,
-        num_workers=None, thresholds=DEFAULT_THRESHOLDS):
+        num_workers=None, thresholds=None, per_class=False):
+    thresholds = tuple(thresholds) if thresholds is not None else (
+        (0.7,) if per_class else DEFAULT_THRESHOLDS)
+    if per_class and thresholds != (0.7,):
+        raise ValueError("Per-class validation uses a fixed threshold of 0.7")
     checkpoint_path = Path(checkpoint_path).resolve()
     if device == "auto":
         device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -111,7 +122,17 @@ def run(checkpoint_path, output_dir=None, device="auto", batch_size=None,
     print(f"Checkpoint: {checkpoint_path} (epoch={epoch}, zero-based)", flush=True)
     print(f"Validation: {len(entries)} clips, {len(dataset)} clip-condition pairs, "
           f"{len(loader)} batches; device={device}", flush=True)
-    results, batch_count = sweep_batches(module, loader, device, thresholds, epoch)
+    results, batch_count = sweep_batches(module, loader, device, thresholds, epoch,
+                                        include_per_class=per_class)
+    if per_class:
+        counts_by_class = {row["class_index"]: row for row in results[0]["per_class"]}
+        index_to_mid = {index: mid for mid, index in dataset.mid_to_index.items()}
+        results[0]["per_class"] = [
+            {**counts_by_class.get(index, frame_metrics_from_counts(0, 0, 0, 0)),
+             "class_index": index, "mid": index_to_mid[index], "class_name": name,
+             "included_in_macro": counts_by_class.get(index, {}).get("valid_frames", 0) > 0}
+            for index, name in enumerate(dataset.class_names)
+        ]
     report = {
         "checkpoint": str(checkpoint_path), "checkpoint_epoch": epoch,
         "partition": "cv", "split_path": str(split_path),
@@ -120,20 +141,40 @@ def run(checkpoint_path, output_dir=None, device="auto", batch_size=None,
         "prediction_batches": batch_count, "batch_size": batch_size,
         "device": str(device), "results": results,
     }
+    if per_class:
+        report["macro_f1_definition"] = (
+            "Unweighted mean of class F1 over classes with valid_frames > 0; "
+            "negative-only classes participate, zero-denominator F1 is 0.")
+        report["class_map_path"] = str(Path(resolve_path(hp.class_map_path, hp.data_path)).resolve())
+    report_suffix = "per_class_0.7" if per_class else "threshold_sweep"
     output_dir = (Path(output_dir) if output_dir is not None else
-                  checkpoint_path.parent / f"{checkpoint_path.stem}_threshold_sweep")
+                  checkpoint_path.parent / f"{checkpoint_path.stem}_{report_suffix}")
     output_dir.mkdir(parents=True, exist_ok=True)
     (output_dir / "threshold_sweep.json").write_text(
         json.dumps(report, indent=2, allow_nan=False) + "\n", encoding="utf-8")
     with (output_dir / "threshold_sweep.csv").open("w", newline="", encoding="utf-8") as handle:
-        writer = csv.DictWriter(handle, fieldnames=list(results[0]))
+        summary_rows = [{key: value for key, value in row.items() if key != "per_class"}
+                        for row in results]
+        writer = csv.DictWriter(handle, fieldnames=list(summary_rows[0]))
         writer.writeheader()
-        writer.writerows(results)
+        writer.writerows(summary_rows)
+    if per_class:
+        with (output_dir / "per_class_metrics.csv").open("w", newline="", encoding="utf-8") as handle:
+            writer = csv.DictWriter(handle, fieldnames=PER_CLASS_FIELDS, extrasaction="ignore")
+            writer.writeheader()
+            writer.writerows(results[0]["per_class"])
+        print("\nMicro metrics (counts pooled across all valid frames):")
     print("\nThreshold  Precision     Recall         F1   Accuracy")
     for row in results:
         values = [f"{row[name]:.6f}" if row[name] is not None else "N/A" for name in METRICS]
         print(f"{row['threshold']:9.2f}  " + "  ".join(f"{value:>9}" for value in values))
     print(f"Valid frames: {results[0]['valid_frames']}")
+    if per_class:
+        print(f"macro_f1={results[0]['macro_f1']}, valid_class_count={results[0]['valid_class_count']}")
+        print("\nPer-class metrics (empty metrics mean no valid supervised frames):")
+        writer = csv.DictWriter(sys.stdout, fieldnames=PER_CLASS_FIELDS, extrasaction="ignore")
+        writer.writeheader()
+        writer.writerows(results[0]["per_class"])
     print(f"Reports: {output_dir.resolve()}", flush=True)
     return report
 
@@ -144,7 +185,10 @@ def main():
     source.add_argument("--checkpoint", type=Path, help="Explicit Lightning .ckpt file")
     source.add_argument("--run-dir", type=Path,
                         help="Experiment directory; select val_loss best via mylast.ckpt")
-    parser.add_argument("--thresholds", nargs="+", type=float, default=DEFAULT_THRESHOLDS)
+    parser.add_argument("--thresholds", nargs="+", type=float,
+                        help="Default: 0.3 through 0.9; fixed at 0.7 with --per-class")
+    parser.add_argument("--per-class", action="store_true",
+                        help="Validate once at threshold 0.7 and export per-class/Macro F1")
     parser.add_argument("--device", choices=("auto", "cpu", "cuda"), default="auto")
     parser.add_argument("--batch-size", type=int, help="Default: checkpoint batch size")
     parser.add_argument("--num-workers", type=int, help="Default: checkpoint worker count")
@@ -152,7 +196,7 @@ def main():
     args = parser.parse_args()
     checkpoint = args.checkpoint if args.checkpoint else best_checkpoint(args.run_dir)
     run(checkpoint, args.output_dir, args.device, args.batch_size, args.num_workers,
-        args.thresholds)
+        args.thresholds, args.per_class)
 
 
 if __name__ == "__main__":

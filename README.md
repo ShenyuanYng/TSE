@@ -277,6 +277,48 @@ At threshold 0.5, compare with the training log at the **best checkpoint's epoch
 which may differ from the final epoch. The sweep does not select or apply a new
 training threshold automatically.
 
+## Per-class and Macro F1 from a fixed checkpoint
+
+Add `--per-class` to the same validation command. This mode fixes the threshold
+at **0.7**, runs the saved validation set once, and keeps the model weights fixed:
+
+```bash
+python -u sweep_validation_thresholds.py \
+  --run-dir experiments/audioset_strong/EXPERIMENT \
+  --per-class --device cuda \
+  --output-dir outputs/validation_per_class_0.7
+```
+
+`--run-dir` selects the recorded `val_loss` best checkpoint as above; use
+`--checkpoint /path/to/exact.ckpt` to evaluate an explicit frozen checkpoint.
+The optional `--thresholds` argument must be `0.7` in this mode. On Slurm, use
+the same `srun` allocation shown above, adding `--per-class` to the Python command.
+
+After global clip-condition deduplication, TP/FP/FN/TN are summed separately for
+each class, and Precision/Recall/F1 are computed from those full-validation
+counts. Micro Precision/Recall/F1/Accuracy still use the pooled counts over all
+valid frames. Macro F1 is the **unweighted mean** of class F1 values for classes
+with `valid_frames > 0`; neither batch nor rank F1 values are averaged.
+Negative-only classes participate with F1 = 0 when its denominator is zero.
+Classes with no valid frames are excluded. If none are valid, `macro_f1` is null
+and `valid_class_count` is 0.
+
+The console prints the Micro metrics, `macro_f1`, `valid_class_count`, and the
+per-class table. The output directory contains:
+
+- `per_class_metrics.csv`: every class in the checkpoint-configured class map,
+  with MID, class name, class index, TP/FP/FN/TN, Precision/Recall/F1/Accuracy,
+  valid frame count, and `included_in_macro`. Classes without valid frames have
+  zero counts and blank metric cells, so they cannot be mistaken for zero-F1
+  evaluated classes.
+- `threshold_sweep.csv`: the single threshold's Micro metrics, Macro F1, valid
+  class count, and pooled confusion counts.
+- `threshold_sweep.json`: the same summary plus per-class rows, checkpoint and
+  validation split provenance, and the Macro F1 inclusion rule.
+
+This only extends standalone checkpoint evaluation; training hooks, loss,
+optimizer, saved weights and training threshold are unchanged.
+
 ## Inspect one prediction
 
 Compare a trained checkpoint's frame probabilities with the real strong label

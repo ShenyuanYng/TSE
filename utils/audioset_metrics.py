@@ -8,6 +8,19 @@ def tensor(value):
     return value[0] if isinstance(value, (tuple, list)) else value
 
 
+def frame_metrics_from_counts(tp, fp, fn, tn):
+    """Shared micro/per-class ratios; empty supervision is distinct from zero F1."""
+    total = tp + fp + fn + tn
+    return {
+        "tp": tp, "fp": fp, "fn": fn, "tn": tn,
+        "correct_frames": tp + tn, "valid_frames": total,
+        "accuracy": (tp + tn) / total if total else None,
+        "precision": (tp / (tp + fp) if tp + fp else 0.0) if total else None,
+        "recall": (tp / (tp + fn) if tp + fn else 0.0) if total else None,
+        "f1": (2 * tp / (2 * tp + fp + fn) if 2 * tp + fp + fn else 0.0) if total else None,
+    }
+
+
 class ConditionalFrameAccuracy:
     """Accumulate TP/FP/FN/TN, deduplicating clip-condition pairs across DDP."""
 
@@ -38,32 +51,39 @@ class ConditionalFrameAccuracy:
             self.rows[(clip, int(category))] = tuple(pair)
 
     # Compute ratios once from the entire deduplicated epoch, never per batch.
-    def compute(self):
+    def compute(self, include_per_class=False):
         rows = self.rows
         if torch.distributed.is_available() and torch.distributed.is_initialized():
             gathered = [None] * torch.distributed.get_world_size()
             torch.distributed.all_gather_object(gathered, rows)
             rows = {key: value for part in gathered for key, value in part.items()}
         tp, fp, fn, tn = (sum(row[i] for row in rows.values()) for i in range(4))
-        correct = tp + tn
-        total = tp + fp + fn + tn
-        # Undefined ratios are zero; an epoch without valid frames stays empty.
-        precision = tp / (tp + fp) if tp + fp else 0.0
-        recall = tp / (tp + fn) if tp + fn else 0.0
-        f1 = 2 * tp / (2 * tp + fp + fn) if 2 * tp + fp + fn else 0.0
-        return {
-            "conditional_frame_accuracy": correct / total if total else None,
-            "conditional_frame_precision": precision if total else None,
-            "conditional_frame_recall": recall if total else None,
-            "conditional_frame_f1": f1 if total else None,
-            "tp": tp,
-            "fp": fp,
-            "fn": fn,
-            "tn": tn,
-            "correct_frames": correct,
-            "valid_frames": total,
+        micro = frame_metrics_from_counts(tp, fp, fn, tn)
+        result = {
+            **{f"conditional_frame_{name}": micro[name]
+               for name in ("accuracy", "precision", "recall", "f1")},
+            **{name: micro[name] for name in
+               ("tp", "fp", "fn", "tn", "correct_frames", "valid_frames")},
             "threshold": self.threshold,
         }
+        if include_per_class:
+            # Group only AFTER the existing cross-rank clip-condition deduplication.
+            by_class = {}
+            for (_, category), counts in rows.items():
+                totals = by_class.setdefault(category, [0, 0, 0, 0])
+                for index, count in enumerate(counts):
+                    totals[index] += count
+            per_class = [
+                {"class_index": category, **frame_metrics_from_counts(*counts)}
+                for category, counts in sorted(by_class.items())
+            ]
+            valid = [row for row in per_class if row["valid_frames"] > 0]
+            result.update(
+                per_class=per_class,
+                macro_f1=sum(row["f1"] for row in valid) / len(valid) if valid else None,
+                valid_class_count=len(valid),
+            )
+        return result
 
     def reset(self):
         self.rows.clear()
