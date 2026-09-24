@@ -81,6 +81,17 @@ class ThresholdSweepTest(unittest.TestCase):
         self.assertEqual(per_class[0]["macro_f1"], 0.)
         self.assertEqual(len(per_class[0]["per_class"]), 3)
 
+        # Optional diagnostics see exactly the same predictions, with no extra forward.
+        collector = Mock()
+        model.calls = 0
+        with patch.object(ConditionalFrameAccuracy, "update", record):
+            diagnosed, _ = sweep_batches(module, [first, second], "cpu", log_every=0,
+                                           probability_collector=collector)
+        self.assertEqual(model.calls, 2)
+        self.assertEqual(diagnosed, rows)
+        self.assertIs(collector.update.call_args_list[0].args[0]["frame_probs"], first[0]["frame_probs"])
+        self.assertIs(collector.update.call_args_list[1].args[0]["frame_probs"], second[0]["frame_probs"])
+
     def test_per_class_threshold_is_fixed(self):
         with self.assertRaisesRegex(ValueError, "fixed threshold of 0.7"):
             run("unused.ckpt", thresholds=(.5,), per_class=True)
@@ -128,6 +139,10 @@ class ThresholdSweepTest(unittest.TestCase):
             split = root / hp.train_split_path
             original_split = split.read_bytes()
             model = SourceSeparator(hp)
+            # Synthetic fixture gives exactly 0.5, no predictions at reference 0.7.
+            with torch.no_grad():
+                for parameter in model.parameters():
+                    parameter.zero_()
             checkpoint = root / "synthetic.ckpt"
             torch.save({"epoch": 12, "hyper_parameters": vars(hp),
                         "state_dict": model.state_dict()}, checkpoint)
@@ -189,10 +204,53 @@ class ThresholdSweepTest(unittest.TestCase):
             self.assertEqual(len(summary), 1)
             self.assertEqual(summary[0]["valid_class_count"], "1")
             self.assertNotIn("per_class", summary[0])
+            positive_summary = json.loads((root / "per_class/positive_class_summary.json").read_text())
+            self.assertEqual(positive_summary["positive_class_count"], 1)
+            self.assertEqual(positive_summary["provenance"]["threshold"], .7)
+            self.assertEqual(positive_summary["provenance"]["checkpoint"], str(checkpoint.resolve()))
+            with (root / "per_class/strong_positive_class_metrics.csv").open() as handle:
+                positives = list(csv.DictReader(handle))
+            self.assertEqual([row["MID"] for row in positives], ["A"])
+            self.assertEqual(int(positives[0]["positive_frames"]), aggregate["tp"] + aggregate["fn"])
+            self.assertEqual(int(positives[0]["predicted_positive_frames"]), aggregate["tp"] + aggregate["fp"])
+            self.assertEqual(float(positives[0]["F1"]), aggregate["f1"])
             self.assertIn("macro_f1=", output.getvalue())
             self.assertIn("valid_class_count=1", output.getvalue())
             self.assertEqual(checkpoint.read_bytes(), original_checkpoint)
             self.assertEqual(split.read_bytes(), original_split)
+            with patch("source_separator.loss_creator", return_value=loss), \
+                 patch.object(SourceSeparator, "configure_optimizers",
+                              side_effect=AssertionError("Probability diagnostics must not train")), \
+                 redirect_stdout(output):
+                diagnostic = run(checkpoint, root / "probability", device="cpu",
+                                 probability_reference=root / "per_class/threshold_sweep.json")
+            self.assertEqual(diagnostic["results"], results)
+            self.assertEqual(diagnostic["prediction_batches"], 2)
+            self.assertEqual(diagnostic["probability_diagnostics"]["class_count"], 1)
+            self.assertEqual(diagnostic["probability_diagnostics"]["selection_threshold"], .7)
+            self.assertEqual(diagnostic["probability_diagnostics"]["diagnostic_threshold"], .5)
+            with (root / "probability/no_prediction_probability_stats.csv").open() as handle:
+                probability_rows = list(csv.DictReader(handle))
+            self.assertEqual([row["MID"] for row in probability_rows], ["A"])
+            for key in ("max_probability", "mean_probability", "p95_probability",
+                        "gt_positive_mean_probability", "gt_positive_max_probability"):
+                self.assertEqual(float(probability_rows[0][key]), .5)
+            self.assertEqual(int(probability_rows[0]["positive_frames"]), aggregate["fn"])
+            self.assertEqual(int(probability_rows[0]["TP"]), results[2]["tp"])
+            self.assertEqual(float(probability_rows[0]["F1"]), results[2]["f1"])
+            self.assertEqual(checkpoint.read_bytes(), original_checkpoint)
+            self.assertEqual(split.read_bytes(), original_split)
+            loss.assert_not_called()
+            # Metadata mismatch fails before starting diagnostic inference.
+            for field, wrong, message in (("checkpoint_epoch", 99, "checkpoint"),
+                                           ("split_sha256", "wrong", "split"),
+                                           ("validation_samples", 999, "inventory")):
+                changed = {**class_report, field: wrong}
+                bad_reference = root / "bad_reference.json"
+                bad_reference.write_text(json.dumps(changed))
+                with self.assertRaisesRegex(ValueError, message), redirect_stdout(output):
+                    run(checkpoint, root / "bad_probability", device="cpu",
+                        probability_reference=bad_reference)
             # Existing inventory validation must refuse a different validation set.
             saved = json.loads(split.read_text())
             saved["cv"].pop()

@@ -261,8 +261,8 @@ srun --partition=L40 --nodelist=ailab01 --gres=gpu:1 \
 
 The default thresholds are `0.3 0.4 0.5 0.6 0.7 0.8 0.9`. The script runs in
 evaluation/inference mode and traverses the full saved validation split once.
-Each batch produces one `frame_probs` tensor shared by all thresholds. Only
-TP/FP/FN/TN counts are kept, using the existing `strong_mask & frame_mask`,
+Each batch produces one `frame_probs` tensor shared by all thresholds. By default
+only TP/FP/FN/TN counts are kept, using the existing `strong_mask & frame_mask`,
 clip-condition deduplication and epoch-level metric formulas. No loss, optimizer,
 training loop or checkpoint write is involved, and the configured threshold stays
 unchanged. Missing split files or a changed clip inventory cause an error.
@@ -318,6 +318,84 @@ per-class table. The output directory contains:
 
 This only extends standalone checkpoint evaluation; training hooks, loss,
 optimizer, saved weights and training threshold are unchanged.
+
+Per-class evaluation also exports Strong-positive class statistics, using
+`positive_frames = TP + FN > 0` and `predicted_positive_frames = TP + FP` on the
+same supervised valid frames. The number of classes is computed from the data,
+not fixed at 353. Both frame counts retain the original threshold, masking and
+DDP deduplication. Four additional CSV files are written:
+
+- `strong_positive_class_metrics.csv`: MID, class_name, positive_frames,
+  predicted_positive_frames, TP, FP, FN, Precision, Recall, F1.
+- `zero_f1_classes.csv`: all Strong-positive classes with F1 = 0, plus a
+  `zero_f1_reason` column (`no_predictions` or `predicted_but_tp_zero`).
+- `zero_f1_no_predictions.csv`: `TP + FP = 0` (the model predicts no valid frame
+  positive for this class at the evaluation threshold).
+- `zero_f1_predicted_but_tp_zero.csv`: `TP = 0` and `FP > 0` (predictions exist,
+  but none match positive labels).
+
+`positive_class_summary.json` records the group sizes, mean F1 over just the
+Strong-positive classes, definitions and provenance. These groups exclude
+classes with no Strong-positive frames, even if those classes have false positives.
+Zero F1 is identified from exact counts, not rounded CSV metric values.
+
+Existing results can be summarized without loading a checkpoint or PyTorch:
+
+```bash
+python summarize_positive_classes.py \
+  --input-csv outputs/validation_per_class_0.7/per_class_metrics.csv \
+  --output-dir outputs/strong_positive_classes_0.7
+```
+
+## Probability diagnostics for classes with no predictions
+
+Use the original **per-class** `threshold_sweep.json` to select classes with
+`TP = FP = 0` and `FN > 0`. For the job 37074 report at **0.7**, this selects 76
+classes. This does **not** mean that they also have no predictions at 0.5.
+The count-only CSVs cannot reconstruct probability means, maxima or percentiles;
+run the frozen best checkpoint once on the same saved validation split:
+
+```bash
+python -u sweep_validation_thresholds.py \
+  --run-dir experiments/audioset_strong/EXPERIMENT \
+  --device cuda --thresholds 0.5 0.7 \
+  --probability-reference outputs/validation_per_class_0.7/threshold_sweep.json \
+  --diagnostic-threshold 0.5 \
+  --output-dir outputs/no_prediction_probability_37074
+```
+
+Use the `srun` allocation shown above on Slurm. The reference report's checkpoint
+epoch, version/checkpoint filename, split hash, validation inventory and class map
+must match. After inference, each selected class must reproduce the reference
+valid-frame/positive-frame counts and zero predictions at the selection threshold.
+Mismatch raises an error instead of silently analyzing a different population.
+
+This optional evaluation keeps valid frame probabilities and GT-positive flags
+only for the selected classes on CPU. It reuses the batch's existing `frame_probs`,
+applies `strong_mask & frame_mask`, and merges DDP objects using the same
+`(clip, class_index)` deduplication as the existing metrics. Means and exact P95
+(linear interpolation) are computed over **all** deduplicated class frames, never
+averaged across batches, clips or ranks. The retained arrays are reset after
+computation. Training's counts-only metrics, model and loss are unchanged.
+
+Additional outputs, ordered by descending `positive_frames` (MID breaks ties):
+
+- `no_prediction_probability_stats.csv`: all selected classes, with MID/name,
+  positive/valid frame counts, all-valid max/mean/P95, GT-positive mean/max,
+  GT-negative mean and the positive-minus-negative mean gap. Selection and
+  diagnostic thresholds are explicit columns. TP/FP/FN, predicted-positive frame
+  count and Precision/Recall/F1 refer to the diagnostic threshold (default 0.5).
+- `no_prediction_probability_top20.csv`: the 20 classes with the most positive
+  frames, including the same probability statistics; also printed to the console.
+- `no_prediction_probability_summary.json`: reference provenance, threshold
+  observation counts and statistic definitions. These are also recorded under
+  `probability_diagnostics` in the new run's `threshold_sweep.json`.
+
+`threshold_observation` reports `gt_positives_recovered`, `only_false_positives`
+or `all_scores_below_threshold` at the diagnostic threshold. Low probabilities
+alone cannot establish that a class was not learned. Compare positive and
+negative frame scores and the resulting precision/recall/F1 before attributing
+failure to the threshold. A missing negative-frame mean stays blank, not zero.
 
 ## Inspect one prediction
 

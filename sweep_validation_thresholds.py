@@ -1,4 +1,4 @@
-"""Evaluate a checkpoint: threshold sweep or per-class validation at 0.7."""
+"""Evaluate a checkpoint: threshold sweep, per-class metrics, probability diagnostics."""
 
 import argparse
 import csv
@@ -15,7 +15,9 @@ from datasets.paths.audioset_paths import resolve_path
 from datasets.train_split import validate_split_config
 from inspect_prediction import _move_to_device
 from source_separator import SourceSeparator
+from summarize_positive_classes import write_positive_class_reports
 from utils.audioset_metrics import ConditionalFrameAccuracy, frame_metrics_from_counts
+from utils.frame_probability_diagnostics import FrameProbabilityDiagnostics, write_probability_reports
 
 
 DEFAULT_THRESHOLDS = (0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9)
@@ -49,8 +51,8 @@ def best_checkpoint(run_dir):
 
 @torch.inference_mode()
 def sweep_batches(module, batches, device, thresholds=DEFAULT_THRESHOLDS,
-                  epoch=0, log_every=50, include_per_class=False):
-    """One forward per batch; only per-pair TP/FP/FN/TN survive the batch."""
+                  epoch=0, log_every=50, include_per_class=False, probability_collector=None):
+    """One forward per batch; optional diagnostics reuse the same probabilities."""
     thresholds = tuple(thresholds)
     if not thresholds or len(set(thresholds)) != len(thresholds):
         raise ValueError("Thresholds must be nonempty and unique")
@@ -63,6 +65,8 @@ def sweep_batches(module, batches, device, thresholds=DEFAULT_THRESHOLDS,
         # Reuse this exact frame_probs tensor for every threshold before discarding it.
         for metric in metrics:
             metric.update(predictions, targets)
+        if probability_collector is not None:
+            probability_collector.update(predictions, targets)
         if log_every and batch_count % log_every == 0:
             print(f"Validation batches processed: {batch_count}", flush=True)
     results = []
@@ -81,7 +85,8 @@ def sweep_batches(module, batches, device, thresholds=DEFAULT_THRESHOLDS,
 
 
 def run(checkpoint_path, output_dir=None, device="auto", batch_size=None,
-        num_workers=None, thresholds=None, per_class=False):
+        num_workers=None, thresholds=None, per_class=False, probability_reference=None,
+        diagnostic_threshold=0.5):
     thresholds = tuple(thresholds) if thresholds is not None else (
         (0.7,) if per_class else DEFAULT_THRESHOLDS)
     if per_class and thresholds != (0.7,):
@@ -119,11 +124,27 @@ def run(checkpoint_path, output_dir=None, device="auto", batch_size=None,
     dataset = dataset_creator(hp, "cv", path_list=entries, is_training=False)
     loader = DataLoader(dataset, batch_size=batch_size, shuffle=False,
                         num_workers=num_workers, collate_fn=module.collate_fn)
+    split_sha256 = hashlib.sha256(split_path.read_bytes()).hexdigest()
+    probability_collector = None
+    if probability_reference is not None:
+        probability_collector = FrameProbabilityDiagnostics.from_report(
+            probability_reference, checkpoint_path, epoch, split_sha256, dataset,
+            len(entries), diagnostic_threshold)
+        print(f"Selected {len(probability_collector.classes)} previously unpredicted classes "
+              f"at threshold {probability_collector.selection_threshold}; "
+              f"diagnosing threshold {diagnostic_threshold}", flush=True)
     print(f"Checkpoint: {checkpoint_path} (epoch={epoch}, zero-based)", flush=True)
     print(f"Validation: {len(entries)} clips, {len(dataset)} clip-condition pairs, "
           f"{len(loader)} batches; device={device}", flush=True)
     results, batch_count = sweep_batches(module, loader, device, thresholds, epoch,
-                                        include_per_class=per_class)
+                                        include_per_class=per_class,
+                                        probability_collector=probability_collector)
+    probability_rows = None
+    if probability_collector is not None:
+        try:
+            probability_rows = probability_collector.compute()
+        finally:
+            probability_collector.reset()
     if per_class:
         counts_by_class = {row["class_index"]: row for row in results[0]["per_class"]}
         index_to_mid = {index: mid for mid, index in dataset.mid_to_index.items()}
@@ -136,7 +157,7 @@ def run(checkpoint_path, output_dir=None, device="auto", batch_size=None,
     report = {
         "checkpoint": str(checkpoint_path), "checkpoint_epoch": epoch,
         "partition": "cv", "split_path": str(split_path),
-        "split_sha256": hashlib.sha256(split_path.read_bytes()).hexdigest(),
+        "split_sha256": split_sha256,
         "validation_clips": len(entries), "validation_samples": len(dataset),
         "prediction_batches": batch_count, "batch_size": batch_size,
         "device": str(device), "results": results,
@@ -147,9 +168,14 @@ def run(checkpoint_path, output_dir=None, device="auto", batch_size=None,
             "negative-only classes participate, zero-denominator F1 is 0.")
         report["class_map_path"] = str(Path(resolve_path(hp.class_map_path, hp.data_path)).resolve())
     report_suffix = "per_class_0.7" if per_class else "threshold_sweep"
+    if probability_reference is not None:
+        report_suffix += "_probability_diagnostics"
     output_dir = (Path(output_dir) if output_dir is not None else
                   checkpoint_path.parent / f"{checkpoint_path.stem}_{report_suffix}")
     output_dir.mkdir(parents=True, exist_ok=True)
+    if probability_rows is not None:
+        report["probability_diagnostics"] = write_probability_reports(
+            probability_rows, output_dir, probability_collector.provenance)
     (output_dir / "threshold_sweep.json").write_text(
         json.dumps(report, indent=2, allow_nan=False) + "\n", encoding="utf-8")
     with (output_dir / "threshold_sweep.csv").open("w", newline="", encoding="utf-8") as handle:
@@ -163,6 +189,11 @@ def run(checkpoint_path, output_dir=None, device="auto", batch_size=None,
             writer = csv.DictWriter(handle, fieldnames=PER_CLASS_FIELDS, extrasaction="ignore")
             writer.writeheader()
             writer.writerows(results[0]["per_class"])
+        write_positive_class_reports(results[0]["per_class"], output_dir, provenance={
+            "checkpoint": str(checkpoint_path), "checkpoint_epoch": epoch,
+            "threshold": results[0]["threshold"], "partition": "cv",
+            "split_sha256": report["split_sha256"],
+        })
         print("\nMicro metrics (counts pooled across all valid frames):")
     print("\nThreshold  Precision     Recall         F1   Accuracy")
     for row in results:
@@ -189,6 +220,11 @@ def main():
                         help="Default: 0.3 through 0.9; fixed at 0.7 with --per-class")
     parser.add_argument("--per-class", action="store_true",
                         help="Validate once at threshold 0.7 and export per-class/Macro F1")
+    parser.add_argument("--probability-reference", type=Path,
+                        help="Original per-class threshold_sweep.json; diagnose its classes "
+                             "with TP=FP=0 and FN>0 using the same predictions")
+    parser.add_argument("--diagnostic-threshold", type=float, default=0.5,
+                        help="Threshold to contrast with the probability reference (default 0.5)")
     parser.add_argument("--device", choices=("auto", "cpu", "cuda"), default="auto")
     parser.add_argument("--batch-size", type=int, help="Default: checkpoint batch size")
     parser.add_argument("--num-workers", type=int, help="Default: checkpoint worker count")
@@ -196,7 +232,7 @@ def main():
     args = parser.parse_args()
     checkpoint = args.checkpoint if args.checkpoint else best_checkpoint(args.run_dir)
     run(checkpoint, args.output_dir, args.device, args.batch_size, args.num_workers,
-        args.thresholds, args.per_class)
+        args.thresholds, args.per_class, args.probability_reference, args.diagnostic_threshold)
 
 
 if __name__ == "__main__":
