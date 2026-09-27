@@ -397,6 +397,96 @@ alone cannot establish that a class was not learned. Compare positive and
 negative frame scores and the resulting precision/recall/F1 before attributing
 failure to the threshold. A missing negative-frame mean stays blank, not zero.
 
+## Ontology diagnostic: other classes on target GT-positive frames
+
+`diagnose_ontology_confusions.py` ranks the other model classes on the same
+GT-positive frames of a target class. The default targets are Speech, Animal,
+Vehicle, Ocean, Narration/monologue, Rail transport and Emergency vehicle.
+Use `--target-mids` to supply a different explicit list of MIDs.
+
+```bash
+python -u diagnose_ontology_confusions.py \
+  --run-dir experiments/audioset_strong/EXPERIMENT \
+  --reference-report probability_reference_37074.json \
+  --ontology resources/audioset_ontology.json \
+  --device cuda \
+  --output-dir outputs/ontology_confusion_37074
+```
+
+The reference is the original **per-class** `threshold_sweep.json`, not the
+later two-threshold probability summary. It fixes checkpoint identity/epoch,
+saved split hash, validation membership, class map and expected positive/valid
+frame counts. The full original validation loader and reference batch size are
+retained, because the encoder's GroupNorm also sees padded time positions.
+No sampling or ontology propagation changes the evaluation population.
+
+This checkpoint has a conditional binary output, not a 527-channel output.
+The diagnostic runs the normal forward once per batch and observes its
+`temporal_norm` audio features with a temporary hook. It then scores all 527
+one-hot conditions through the existing embedding/fusion/frame head, exclusively
+on `strong_labels >= 0.5 & strong_mask & frame_mask` for each selected target.
+The target's rescored probabilities must match the normal forward within
+`atol=1e-4, rtol=1e-3`; the maximum observed difference is reported. Model code,
+weights, loss and training hooks are unchanged. No softmax, probability
+renormalization or binary threshold is applied to the ranking.
+
+`--class-chunk-size 32` and `--frame-chunk-size 256` bound temporary head tensors.
+They do not alter the full encoder batch size or padding. Only sums, maxima and
+annotation/count evidence per `(clip, target MID)` survive each batch. These
+summaries are deduplicated across DDP ranks before class-level aggregation and
+reset after computation. Ties in mean probability use MID order; frame-level
+winner ties use model class index. The target itself is excluded from Top-10.
+
+The fixed official ontology snapshot, source attribution, license and SHA-256
+are under `resources/`. Relationships use the full 632-node directed graph,
+including intermediate nodes outside the model's class map and multiple parents.
+Relation labels describe the **other class relative to the target**:
+`other_is_child`, `other_is_descendant`, `other_is_parent`, `other_is_ancestor`,
+`no_lineage_relation`, or `unknown_mid`. A shared ancestor alone does not make
+two classes ancestors/descendants of each other. Shared direct parents are
+reported separately, and relationship paths run from parent to child.
+
+Outputs:
+
+- `ontology_confusion_top10.csv`: 10 other classes per target (70 rows for the
+  seven defaults), ordered by their **frame-weighted mean probability over all
+  target GT-positive frames**. Includes target and other MID/name, positive frame
+  and clip counts, target/other mean and maximum, mean gap, fraction of frames
+  where the other score exceeds the target, frame-level Top-1 frequency among
+  other classes, ontology relationship, distance and path.
+- The same CSV includes weak-label presence (clip count and covered target
+  positive frames) and exact-MID strong annotation overlap on those target frames.
+  `NOT_PRESENT` overrides `PRESENT`, as in the dataset. Original float64 frame
+  centers are reconstructed from sample indices to avoid collated float32 time
+  rounding at annotation boundaries. No alternate-class mask restricts scoring.
+- `ontology_confusion_all_classes.csv`: the full ranking of all other model
+  classes, allowing alternative views without another inference run.
+- `ontology_target_summary.csv`: support and target probabilities, Top-10
+  lineage-related/unknown class counts and numerical comparison per target.
+- `ontology_confusion_summary.json`: checkpoint/split/ontology provenance,
+  inference settings, definitions and interpretation limits.
+
+High alternate probabilities plus a lineage relationship are diagnostic evidence,
+not proof of a strong/weak label error: simultaneous sounds can legitimately
+co-occur, and independently conditioned scores need not be calibrated across
+classes. This analysis includes only exact-MID GT-positive frames, so it cannot
+explain all weak-label targets lacking a same-MID PRESENT annotation. Do not mix
+counts from a different split/checkpoint, including earlier matching audits.
+
+For the existing job 37074 checkpoint on ailab01, after syncing the new files:
+
+```bash
+cd ~/projects/new_example_code
+mkdir -p outputs/ontology_confusion_37074
+sbatch slurm/audioset_ontology_diagnostic_ailab01.sbatch
+# Replace JOBID with the number returned by sbatch:
+tail -F outputs/ontology_confusion_37074/slurm-JOBID.log
+```
+
+The Slurm script only performs validation diagnostics and writes reports/logs.
+All scoring inputs must already exist on the compute node; ontology resolution
+uses the local snapshot and needs no network access there.
+
 ## Inspect one prediction
 
 Compare a trained checkpoint's frame probabilities with the real strong label
