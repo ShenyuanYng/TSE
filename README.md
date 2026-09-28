@@ -156,6 +156,60 @@ settings, and training hyperparameters are all defined in `run.sh`.
 
 ## Local launch
 
+### Mac → Git → server 同步
+
+`sync_server.sh` 支持 `main` 和 `audioset-fsd50k-mix`，自动同步 **Mac 当前分支**，
+不会合并这两个分支。首次在 Mac 配置：
+
+```bash
+cp .sync_server.env.example .sync_server.env
+# 编辑 .sync_server.env，填写 SERVER_HOST 和服务器仓库绝对路径 SERVER_REPO
+```
+
+服务器需要已有该项目的 Git clone、Bash、可访问 Git 远端的凭据；Mac 需要能 SSH
+登录服务器。非默认 SSH 端口、密钥、跳板机放在 `~/.ssh/config`，`SERVER_HOST`
+填写对应别名。本机配置 `.sync_server.env` 已被 Git 忽略。
+
+每次改完代码后，在 Mac 仓库根目录执行：
+
+```bash
+./tools/check_local.sh             # Python / Bash 语法、Git 空白检查
+git add <本次修改的文件>
+git commit -m "描述本次修改"
+./sync_server.sh
+```
+
+脚本先 push 当前 commit，再 SSH 到服务器，fetch 并切换到同名分支，执行
+`git pull --ff-only`。最后打印服务器完整 commit、作者、日期、提交说明，且只有
+服务器 SHA 与 Mac 本次推送的 SHA 完全一致才报告成功。首次推送也会创建远端分支。
+推送失败、Mac 有未提交文件（包括未忽略的新文件）、服务器已追踪文件有修改、
+服务器分支分叉或 SHA 不一致时会停止；不会强推、reset 或自动 stash。
+服务器未追踪的结果文件会保留；若它们与待拉取文件冲突，Git 会停止更新。
+若 push 已成功而 SSH/pull 失败，
+远端提交仍然保留，解决错误后可重跑。简单检查只验证语法，不代替项目测试。
+
+同步成功后，登录服务器并进入刚同步的目录，先进行 smoke test：
+
+```bash
+./run.sh --submit true --epochs 1 --num-jobs 1 --batch-size 2 \
+  --train-percent-check 10 --val-percent-check 10 \
+  --slurm-time 00:30:00 --tag _smoke
+```
+
+确认 smoke 作业成功后，提交完整训练：
+
+```bash
+./run.sh --submit true
+```
+
+`run.sh --submit true` 使用项目现有的 sbatch 入口；同步脚本本身不提交训练。
+服务器目录默认会跟随 Mac 切换分支。若两个分支要同时使用，可在配置中分别设置
+`SERVER_REPO_MAIN` 和 `SERVER_REPO_MIX`，指向两个独立 clone。排队或运行中的
+Slurm 作业仍会读取共享目录的代码，因此作业结束前不要同步该目录；需要继续开发时
+使用独立的运行副本。SHA 一致性校验确认的是同步完成时的代码版本。
+
+### Run locally
+
 Activate the environment and run:
 
 ```bash

@@ -45,3 +45,6 @@ experiments/
 outputs/
 results/
 checkpoints/
+
+# Mac-to-server sync settings (machine-specific)
+.sync_server.env
