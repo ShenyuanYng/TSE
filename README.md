@@ -487,6 +487,101 @@ The Slurm script only performs validation diagnostics and writes reports/logs.
 All scoring inputs must already exist on the compute node; ontology resolution
 uses the local snapshot and needs no network access there.
 
+## Full Strong Train Weak–Strong label audit
+
+`analyze_weak_strong_labels.py` compares the weak and strong labels for **every
+available clip and every class** in official Strong Train. It reuses
+`get_audioset_paths`, `load_class_map` and `AudioSetOntology`, without decoding
+audio, loading a checkpoint, expanding clips into weak conditions, or changing
+training. This CPU-only script uses only the Python standard library.
+
+Example on ailab01, using the same audio/manifest pairing and non-strict inventory
+as `run.sh` (replace the metrics CSV path with your existing evaluation export):
+
+```bash
+python -u analyze_weak_strong_labels.py \
+  --data-root /hdd2/syy12632604/AudioSet \
+  --audio-dirs /hdd2/cse30029918/corpora/AudioSetRaw/balance_wav \
+               /hdd2/cse30029918/corpora/AudioSetRaw/unbalanced_wav \
+  --weak-manifests metadata/balanced_train_segments.csv \
+                   metadata/unbalanced_train_segments.csv \
+  --strong-manifest metadata/audioset_train_strong.tsv \
+  --class-map metadata/class_labels_indices.csv \
+  --metrics-csv outputs/validation_per_class_0.7/per_class_metrics.csv \
+  --allow-missing-audio \
+  --write-pairs \
+  --output-dir outputs/weak_strong_train_all
+```
+
+By default `--partition all` includes the full joined Strong Train inventory
+**before** its 85/15 holdout, never the official evaluation set. To analyze only
+the actual optimization partition, add `--partition tr --split-json
+/hdd2/syy12632604/AudioSet/metadata/train_val_split.json`. `cv` is also supported.
+The existing split must exactly partition the joined inventory; it is read only,
+never generated or rewritten. Omit `--allow-missing-audio` to require every strong
+clip to have matching weak metadata and audio. When enabled, all excluded strong
+clip IDs and their count are recorded (including missing weak-manifest matches).
+
+Strong intervals are pooled into a unique MID set per clip: positive-duration
+PRESENT coverage inside the manifest duration, with NOT_PRESENT overriding
+overlap. Repeated intervals and repeated weak labels each count once. This
+continuous-time support differs from the model's sampled frame counts.
+
+Both weak→strong and strong→weak find each source MID's nearest target in the
+**full undirected parent–child ontology graph**, retaining intermediate nodes
+outside the model class map. The exhaustive categories are `exact_match` (d=0),
+`d1`, `d2`, `distant` (finite d>2), and `unrelated` (no reachable target).
+`ontology_close` is their d≤2 sum; it never converts a d1/d2 match to exact.
+Empty target sets are counted as unrelated and additionally identified separately.
+Unknown MIDs remain in the reports; equal unknown MIDs still count as exact.
+
+`relation_type` describes the **target relative to the source**: `parent`,
+`child`, `ancestor`, `descendant`, or `sibling` (shared parent). Since AudioSet
+is a DAG with multiple parents, d=2 can also mean two nodes sharing a child:
+that case is explicitly `co_parent`. Directed lineage takes precedence over
+shared parent/child relations. Ties choose the lexicographically smallest MID
+for aggregate relation counts; the pair export retains every nearest tied MID
+and its relation type. Each source label still contributes exactly one count.
+
+Reports:
+
+- `weak_strong_per_class.csv`: one row per MID, with all mapped classes retained
+  even at zero support; observed or metric-only extra MIDs are retained too.
+  Includes requested rates, both directional count/rate sets, d1/d2 relation
+  breakdowns, original Precision/Recall/F1 and source fields with `eval_` prefix.
+- `weak_strong_by_f1.csv`: the same complete table sorted by ascending F1,
+  missing or undefined F1 last (MID breaks ties).
+- `weak_strong_summary.json`: population and micro-weighted directional totals,
+  definitions, unknown/missing MID lists, input paths and SHA-256 hashes.
+- `weak_strong_f1_groups.csv`: all classes grouped by F1 range, showing mean
+  weak/strong support and micro-weighted mismatch rates. Zero-F1 groups also
+  report the number of classes with zero evaluation-positive frames.
+- `nearest_label_pairs.csv` (with `--write-pairs`): per-clip directional nearest
+  labels, distance, category, relation type, close flag, unreachable reason and
+  all nearest ties, for auditing individual matches.
+
+Column denominators are explicit:
+
+| Column | Definition |
+| --- | --- |
+| `support`, `weak_positive_clips` | Clips containing this weak MID |
+| `positive_clips`, `strong_positive_clips` | Clips containing this pooled strong MID |
+| `union_positive_clips` | Clips containing this MID on either side, counted once |
+| Unprefixed distance rates | Weak→strong count / weak-positive clips |
+| `weak_to_strong_*_rate` | Count / weak-positive clips |
+| `strong_to_weak_*_rate` | Count / strong-positive clips |
+| `weak_only_rate` | Weak-positive clips lacking the **same MID** in strong / weak-positive clips |
+| `strong_only_rate` | Strong-positive clips lacking the **same MID** in weak / strong-positive clips |
+
+Only-rates include close and distant alternatives; they are not extra distance
+categories. Zero denominators and missing evaluation metrics stay blank in CSV
+and null in JSON. Original blank F1 values (no valid evaluation frames) remain
+blank, rather than becoming zero. Prefer the original 527-class metrics CSV;
+the filtered strong-positive export is accepted but absent metrics stay blank.
+The joined evaluation frame metrics retain their original partition/threshold;
+they are not recomputed on this audit population. Differences, co-occurrence and
+F1-group associations alone do not establish label errors or causality.
+
 ## Inspect one prediction
 
 Compare a trained checkpoint's frame probabilities with the real strong label
